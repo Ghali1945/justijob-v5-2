@@ -2,9 +2,286 @@
 'use client'
 
 import { useState } from 'react'
-import { AlertTriangle, CheckCircle, Shield, FileText, Upload, Euro, ChevronRight, Scale, TrendingUp, Users, Lock, ArrowLeft, Home } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Shield, FileText, Upload, Euro, ChevronRight, Scale, TrendingUp, Users, Lock, ArrowLeft, Home, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+
+// Composant Questionnaire Modal (copié depuis page.js de l'accueil)
+const QuestionnaireModal = ({ isOpen, onClose }) => {
+  const [currentStep, setCurrentStep] = useState(1)
+  const [formData, setFormData] = useState({
+    nom: '', prenom: '', dateNaissance: '', adresse: '', telephone: '', email: '',
+    raisonSociale: '', adresseEmployeur: '', secteurActivite: '', effectif: '',
+    typeContrat: '', dateEmbauche: '', poste: '', salaire: '',
+    typeProbleme: '', circonstances: '', temoins: '',
+    contratTravail: false, fichesPayee: false, correspondances: false,
+    autresElements: ''
+  })
+
+  const steps = ['Informations', 'Employeur', 'Contrat', 'Litige', 'Finalisation']
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const nextStep = () => {
+    if (currentStep < 5) setCurrentStep(currentStep + 1)
+  }
+
+  const prevStep = () => {
+    if (currentStep > 1) setCurrentStep(currentStep - 1)
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header du modal */}
+        <div className="flex justify-between items-center p-6 border-b">
+          <h2 className="text-2xl font-bold text-gray-900">Questionnaire JustiJob Complet</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <X size={24} />
+          </button>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="px-6 py-4">
+          <div className="flex justify-between items-center mb-4">
+            {steps.map((step, index) => (
+              <div key={step} className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+                index + 1 === currentStep ? 'bg-blue-600 text-white' :
+                index + 1 < currentStep ? 'bg-green-600 text-white' :
+                'bg-gray-200 text-gray-600'
+              }`}>
+                {index + 1}
+              </div>
+            ))}
+          </div>
+          <div className="h-2 bg-gray-200 rounded-full">
+            <div className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                 style={{ width: `${(currentStep / 5) * 100}%` }} />
+          </div>
+        </div>
+
+        {/* Contenu du formulaire */}
+        <div className="p-6">
+          {/* Étape 1: Informations personnelles */}
+          {currentStep === 1 && (
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Informations Personnelles</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
+                  <input type="text" value={formData.nom} onChange={(e) => handleInputChange('nom', e.target.value)}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Prénom *</label>
+                  <input type="text" value={formData.prenom} onChange={(e) => handleInputChange('prenom', e.target.value)}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date de naissance</label>
+                  <input type="date" value={formData.dateNaissance} onChange={(e) => handleInputChange('dateNaissance', e.target.value)}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone *</label>
+                  <input type="tel" value={formData.telephone} onChange={(e) => handleInputChange('telephone', e.target.value)}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                  <input type="email" value={formData.email} onChange={(e) => handleInputChange('email', e.target.value)}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Adresse complète *</label>
+                  <textarea value={formData.adresse} onChange={(e) => handleInputChange('adresse', e.target.value)}
+                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3" required />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Étape 2: Informations employeur */}
+          {currentStep === 2 && (
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Informations sur l'Employeur</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Raison sociale de l'entreprise *</label>
+                  <input type="text" value={formData.raisonSociale} onChange={(e) => handleInputChange('raisonSociale', e.target.value)}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Adresse de l'entreprise *</label>
+                  <textarea value={formData.adresseEmployeur} onChange={(e) => handleInputChange('adresseEmployeur', e.target.value)}
+                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Secteur d'activité</label>
+                  <input type="text" value={formData.secteurActivite} onChange={(e) => handleInputChange('secteurActivite', e.target.value)}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Effectif de l'entreprise</label>
+                  <select value={formData.effectif} onChange={(e) => handleInputChange('effectif', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Sélectionner</option>
+                    <option value="1-10">1-10 salariés</option>
+                    <option value="11-50">11-50 salariés</option>
+                    <option value="51-250">51-250 salariés</option>
+                    <option value="250+">Plus de 250 salariés</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Étape 3: Contrat de travail */}
+          {currentStep === 3 && (
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Informations sur votre Contrat</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Type de contrat *</label>
+                  <select value={formData.typeContrat} onChange={(e) => handleInputChange('typeContrat', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    <option value="">Sélectionner</option>
+                    <option value="CDI">CDI</option>
+                    <option value="CDD">CDD</option>
+                    <option value="Intérim">Intérim</option>
+                    <option value="Stage">Stage</option>
+                    <option value="Apprentissage">Apprentissage</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date d'embauche *</label>
+                  <input type="date" value={formData.dateEmbauche} onChange={(e) => handleInputChange('dateEmbauche', e.target.value)}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Poste occupé *</label>
+                  <input type="text" value={formData.poste} onChange={(e) => handleInputChange('poste', e.target.value)}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Salaire mensuel brut *</label>
+                  <input type="number" value={formData.salaire} onChange={(e) => handleInputChange('salaire', e.target.value)}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Étape 4: Nature du litige */}
+          {currentStep === 4 && (
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Nature de votre Litige</h3>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Quel est votre problème principal ? *</label>
+                  <select value={formData.typeProbleme} onChange={(e) => handleInputChange('typeProbleme', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    <option value="">Sélectionner</option>
+                    <option value="licenciement-abusif">Licenciement abusif</option>
+                    <option value="harcelement">Harcèlement (moral/sexuel)</option>
+                    <option value="discrimination">Discrimination</option>
+                    <option value="salaire-non-paye">Salaire non payé</option>
+                    <option value="heures-sup">Heures supplémentaires non payées</option>
+                    <option value="rupture-conventionnelle">Rupture conventionnelle forcée</option>
+                    <option value="modification-contrat">Modification du contrat imposée</option>
+                    <option value="accident-travail">Accident du travail</option>
+                    <option value="autre">Autre</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Décrivez les circonstances détaillées *</label>
+                  <textarea value={formData.circonstances} onChange={(e) => handleInputChange('circonstances', e.target.value)}
+                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           rows="6" placeholder="Décrivez précisément ce qui s'est passé, quand, où, avec qui..." required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Y a-t-il des témoins ?</label>
+                  <textarea value={formData.temoins} onChange={(e) => handleInputChange('temoins', e.target.value)}
+                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           rows="3" placeholder="Noms des témoins et leur rôle..." />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Étape 5: Finalisation */}
+          {currentStep === 5 && (
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Documents et Finalisation</h3>
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-lg font-medium text-gray-900 mb-4">Quels documents pouvez-vous fournir ?</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      { key: 'contratTravail', label: 'Contrat de travail' },
+                      { key: 'fichesPayee', label: 'Fiches de paie' },
+                      { key: 'correspondances', label: 'Correspondances avec employeur' },
+                    ].map((doc) => (
+                      <label key={doc.key} className="flex items-center space-x-2">
+                        <input type="checkbox" checked={formData[doc.key]}
+                               onChange={(e) => handleInputChange(doc.key, e.target.checked)}
+                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                        <span className="text-sm text-gray-700">{doc.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Informations complémentaires</label>
+                  <textarea value={formData.autresElements} onChange={(e) => handleInputChange('autresElements', e.target.value)}
+                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           rows="4" placeholder="Tout autre élément important pour votre dossier..." />
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                  <h4 className="text-lg font-medium text-blue-900 mb-2">Étapes suivantes</h4>
+                  <ol className="text-sm text-blue-800 space-y-2">
+                    <li>1. Votre questionnaire sera analysé par notre IA</li>
+                    <li>2. Vous recevrez un score de chances de succès</li>
+                    <li>3. Upload de vos documents sur notre plateforme sécurisée</li>
+                    <li>4. Recevez votre dossier prud'hommes sous 24h</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation Buttons */}
+        <div className="flex justify-between items-center px-6 py-4 border-t">
+          {currentStep > 1 ? (
+            <button onClick={prevStep} className="px-6 py-2 text-gray-600 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-200">
+              Précédent
+            </button>
+          ) : <div></div>}
+
+          {currentStep < 5 ? (
+            <button onClick={nextStep} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200">
+              Suivant
+            </button>
+          ) : (
+            <button onClick={() => {
+              alert('Questionnaire envoyé ! Vous allez recevoir votre dossier complet par email sous 24h.');
+              onClose();
+            }} className="px-8 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-200">
+              Envoyer le Questionnaire Complet
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function DiagnosticGratuit() {
   const router = useRouter()
@@ -12,18 +289,19 @@ export default function DiagnosticGratuit() {
   const [showResults, setShowResults] = useState(false)
   const [hasPromoCode, setHasPromoCode] = useState(false)
   const [promoCode, setPromoCode] = useState('')
-  
+  const [isQuestionnaireOpen, setIsQuestionnaireOpen] = useState(false)
+
   const [formData, setFormData] = useState({
     // Étape 1: Type de problème
     typeProbleme: '',
     urgence: '',
-    
+
     // Étape 2: Situation
     anciennete: '',
     salaire: '',
     typeContrat: '',
     convention: '',
-    
+
     // Étape 3: Préjudices
     heuresSupNonPayees: false,
     congesNonPris: false,
@@ -31,7 +309,7 @@ export default function DiagnosticGratuit() {
     licenciementAbusif: false,
     harcelement: false,
     discrimination: false,
-    
+
     // Étape 4: Preuves
     contratTravail: false,
     bulletinsSalaire: false,
@@ -46,32 +324,32 @@ export default function DiagnosticGratuit() {
   const calculateScore = () => {
     let points = 0
     let maxPoints = 100
-    
+
     // Points selon le type de problème (20 points max)
     if (formData.licenciementAbusif) points += 20
     else if (formData.heuresSupNonPayees) points += 15
     else if (formData.harcelement || formData.discrimination) points += 18
     else if (formData.primeNonVersee || formData.congesNonPris) points += 10
-    
+
     // Points selon les preuves (40 points max)
     if (formData.contratTravail) points += 10
     if (formData.bulletinsSalaire) points += 10
     if (formData.courriersEchanges) points += 8
     if (formData.temoignages) points += 7
     if (formData.preuvesMedicales) points += 5
-    
+
     // Points selon l'ancienneté (20 points max)
     const anciennete = parseInt(formData.anciennete) || 0
     if (anciennete > 10) points += 20
     else if (anciennete > 5) points += 15
     else if (anciennete > 2) points += 10
     else if (anciennete > 1) points += 5
-    
+
     // Points selon urgence (20 points max)
     if (formData.urgence === 'immediate') points += 20
     else if (formData.urgence === 'mois') points += 15
     else if (formData.urgence === 'trimestre') points += 10
-    
+
     return Math.min(points, maxPoints)
   }
 
@@ -117,7 +395,7 @@ export default function DiagnosticGratuit() {
 
   if (showResults) {
     const scoreMessage = getScoreMessage(score)
-    
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
         {/* Header avec navigation */}
@@ -132,9 +410,9 @@ export default function DiagnosticGratuit() {
                   <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                   <span className="font-medium">Retour accueil</span>
                 </button>
-                
+
                 <div className="h-6 w-px bg-gray-300 hidden sm:block" />
-                
+
                 <span className="text-xl font-bold text-blue-600 hidden sm:inline">
                   JustiJob
                 </span>
@@ -142,7 +420,7 @@ export default function DiagnosticGratuit() {
                   by Claude AI
                 </span>
               </div>
-              
+
               <nav className="flex items-center space-x-4">
                 <Link href="/calculateurs" className="text-sm text-gray-600 hover:text-blue-600 hidden md:inline">
                   Calculateurs
@@ -185,7 +463,7 @@ export default function DiagnosticGratuit() {
                   </span>
                   <span className="text-gray-600 text-xl ml-1">/100</span>
                 </div>
-                
+
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
                   {scoreMessage.title}
                 </h2>
@@ -197,7 +475,7 @@ export default function DiagnosticGratuit() {
               {/* Analyse détaillée */}
               <div className="border-t pt-6">
                 <h3 className="font-semibold text-gray-900 mb-4">Analyse de votre dossier :</h3>
-                
+
                 <div className="space-y-4">
                   <div className="flex items-start gap-3">
                     <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
@@ -237,7 +515,7 @@ export default function DiagnosticGratuit() {
                 </div>
               </div>
 
-              {/* Actions */}
+              {/* Actions CORRIGÉES */}
               {score >= 50 ? (
                 <div className="mt-8 space-y-4">
                   {/* Option payante */}
@@ -265,7 +543,7 @@ export default function DiagnosticGratuit() {
                             Arguments juridiques personnalisés
                           </li>
                         </ul>
-                        
+
                         <div className="flex items-center gap-4">
                           <div>
                             <p className="text-2xl font-bold">90€</p>
@@ -279,15 +557,16 @@ export default function DiagnosticGratuit() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="mt-6 space-y-3">
+                      {/* BOUTON CORRIGÉ - Ouvre le questionnaire modal au lieu de rediriger */}
                       <button
-                        onClick={() => router.push('/paiement')}
+                        onClick={() => setIsQuestionnaireOpen(true)}
                         className="w-full bg-white text-blue-600 py-3 px-6 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
                       >
                         Obtenir mon dossier complet
                       </button>
-                      
+
                       {/* Toggle code promo */}
                       <button
                         onClick={() => setHasPromoCode(!hasPromoCode)}
@@ -295,7 +574,7 @@ export default function DiagnosticGratuit() {
                       >
                         {hasPromoCode ? 'Masquer' : 'J\'ai'} un code syndicat
                       </button>
-                      
+
                       {hasPromoCode && (
                         <div className="flex gap-2">
                           <input
@@ -305,7 +584,9 @@ export default function DiagnosticGratuit() {
                             placeholder="CODE-SYNDICAT"
                             className="flex-1 px-4 py-2 rounded-lg text-gray-900 placeholder-gray-400"
                           />
-                          <button className="px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors">
+                          <button 
+                            onClick={() => setIsQuestionnaireOpen(true)}
+                            className="px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors">
                             Appliquer
                           </button>
                         </div>
@@ -375,10 +656,17 @@ export default function DiagnosticGratuit() {
             </div>
           </div>
         </div>
+
+        {/* Questionnaire Modal */}
+        <QuestionnaireModal 
+          isOpen={isQuestionnaireOpen} 
+          onClose={() => setIsQuestionnaireOpen(false)} 
+        />
       </div>
     )
   }
 
+  // Le reste du code du formulaire de diagnostic reste identique
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
       {/* Header avec navigation */}
@@ -393,9 +681,9 @@ export default function DiagnosticGratuit() {
                 <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                 <span className="font-medium">Retour accueil</span>
               </Link>
-              
+
               <div className="h-6 w-px bg-gray-300 hidden sm:block" />
-              
+
               <span className="text-xl font-bold text-blue-600 hidden sm:inline">
                 JustiJob
               </span>
@@ -403,7 +691,7 @@ export default function DiagnosticGratuit() {
                 by Claude AI
               </span>
             </div>
-            
+
             <nav className="flex items-center space-x-4">
               <Link href="/calculateurs" className="text-sm text-gray-600 hover:text-blue-600 hidden md:inline">
                 Calculateurs
@@ -488,7 +776,7 @@ export default function DiagnosticGratuit() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
                   Quel est votre problème principal ?
                 </h2>
-                
+
                 <div className="grid md:grid-cols-2 gap-4 mb-6">
                   {problemTypes.map((type) => (
                     <label
@@ -532,13 +820,13 @@ export default function DiagnosticGratuit() {
               </div>
             )}
 
-            {/* Étape 2: Situation */}
+            {/* Étapes 2, 3, 4 - gardent le code existant */}
             {currentStep === 2 && (
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
                   Votre situation professionnelle
                 </h2>
-                
+
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -605,13 +893,14 @@ export default function DiagnosticGratuit() {
               </div>
             )}
 
-            {/* Étape 3: Préjudices */}
+            {/* Étapes 3 et 4 - code existant conservé pour économiser l'espace */}
+            
             {currentStep === 3 && (
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
                   Quels préjudices avez-vous subis ?
                 </h2>
-                
+
                 <div className="space-y-3">
                   <label className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
                     <input
@@ -700,7 +989,7 @@ export default function DiagnosticGratuit() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
                   Quelles preuves possédez-vous ?
                 </h2>
-                
+
                 <div className="space-y-3">
                   <label className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
                     <input
@@ -793,7 +1082,7 @@ export default function DiagnosticGratuit() {
                   ← Retour
                 </button>
               )}
-              
+
               {currentStep < 4 ? (
                 <button
                   onClick={() => setCurrentStep(currentStep + 1)}
