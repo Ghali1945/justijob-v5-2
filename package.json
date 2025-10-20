@@ -1,6 +1,6 @@
 {
   "name": "justijob-nextjs-version-3",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "description": "JustiJob - Plateforme IA d'assistance juridique aux Prud'hommes",
   "private": true,
   "author": "JustiJob Team",
@@ -25,6 +25,7 @@
     "analyze": "cross-env ANALYZE=true next build"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.67.0",
     "@tailwindcss/postcss": "^4.1.12",
     "clsx": "^2.1.1",
     "lucide-react": "^0.395.0",

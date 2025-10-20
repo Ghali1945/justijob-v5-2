@@ -272,7 +272,7 @@ const HowItWorks = () => {
       number: '3',
       title: 'Dossier Prud\'homal (Optionnel)',
       description: 'Si vous souhaitez aller plus loin, obtenez votre dossier complet prêt à déposer.',
-      highlight: '💼 90€ (ou 45€ via syndicat)',
+      highlight: '💼 120€ (ou 60€ via syndicat)',
       color: 'orange',
       free: false
     }
@@ -394,8 +394,8 @@ const PricingSection = () => {
           {/* Option Individuelle */}
           <div className="bg-white rounded-2xl shadow-lg p-8">
             <h3 className="text-2xl font-bold text-gray-800 mb-2">Dossier Complet</h3>
-            <div className="text-4xl font-bold text-blue-600 mb-2">90€</div>
-            <p className="text-sm text-gray-600 mb-4">ou 2 × 45€</p>
+            <div className="text-4xl font-bold text-blue-600 mb-2">120€</div>
+            <p className="text-sm text-gray-600 mb-4">ou 2 × 60€</p>
             <ul className="space-y-3 mb-8">
               <li className="flex items-start">
                 <CheckCircle className="text-blue-500 mr-2 mt-1" size={20} />
@@ -429,7 +429,7 @@ const PricingSection = () => {
           {/* Option Syndicale */}
           <div className="bg-white rounded-2xl shadow-lg p-8">
             <h3 className="text-2xl font-bold text-gray-800 mb-2">Via Syndicat</h3>
-            <div className="text-4xl font-bold text-purple-600 mb-4">45€</div>
+            <div className="text-4xl font-bold text-purple-600 mb-4">60€</div>
             <ul className="space-y-3 mb-8">
               <li className="flex items-start">
                 <CheckCircle className="text-purple-500 mr-2 mt-1" size={20} />

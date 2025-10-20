@@ -13,7 +13,7 @@ export async function POST(request) {
       const validCodes = ['CFDT2025', 'CGT2025', 'FO2025'] // Exemple
       
       if (validCodes.includes(syndicatCode)) {
-        finalAmount = 60 // Tarif réduit
+        finalAmount = 45 // Tarif réduit
       }
     }
     

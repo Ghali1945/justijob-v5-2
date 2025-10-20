@@ -652,7 +652,7 @@ const QuestionnaireGenerator = ({ diagnosticData, onComplete }) => {
             <li><strong>RASSEMBLEZ</strong> toutes les pièces listées (cochez au fur et à mesure)</li>
             <li><strong>SCANNEZ</strong> ou photographiez l'ensemble en bonne qualité</li>
             <li><strong>UPLOADEZ</strong> sur notre plateforme sécurisée JUSTIJOB</li>
-            <li><strong>PROCÉDEZ AU PAIEMENT</strong> (90€ ou 45€ via syndicat)</li>
+            <li><strong>PROCÉDEZ AU PAIEMENT</strong> (120€ ou 60€ via syndicat)</li>
             <li><strong>RECEVEZ</strong> votre dossier complet sous 48h</li>
         </ol>
         
@@ -762,7 +762,7 @@ const QuestionnaireGenerator = ({ diagnosticData, onComplete }) => {
             <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">5</span>
             <div>
               <strong>Payez et recevez votre dossier sous 48h</strong>
-              <p className="text-sm text-gray-600">90€ (ou 45€ via syndicat)</p>
+              <p className="text-sm text-gray-600">120€ (ou 60€ via syndicat)</p>
             </div>
           </li>
         </ol>
