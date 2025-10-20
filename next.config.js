@@ -5,10 +5,10 @@ const nextConfig = {
     unoptimized: true
   },
   typescript: {
-    ignoreBuildErrors: true,  // ✅ NOUVELLE LIGNE
+    ignoreBuildErrors: true,
   },
   eslint: {
-    ignoreDuringBuilds: true,  // ✅ NOUVELLE LIGNE
+    ignoreDuringBuilds: true,
   },
 };
 
