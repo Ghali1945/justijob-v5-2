@@ -19,10 +19,10 @@ export default function SyndicatsPage() {
           
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-6">
-              🤝 Espace Syndicats
+              Espace Syndicats
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Accédez à votre espace dédié et accompagnez vos adhérents dans leurs démarches juridiques
+              Accédez à votre espace dédié et accompagnez vos adhérents
             </p>
           </div>
 
@@ -40,7 +40,7 @@ export default function SyndicatsPage() {
                 href="/syndicats/connexion"
                 className="inline-flex items-center gap-3 bg-red-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-red-700 transition-all shadow-lg"
               >
-                🔐 Se connecter
+                Se connecter
               </Link>
             </div>
 
@@ -60,14 +60,14 @@ export default function SyndicatsPage() {
                 Devenez partenaire JustiJob
               </h3>
               <p className="text-gray-600 mb-6">
-                Rejoignez notre réseau de syndicats partenaires et offrez un accompagnement juridique de qualité à vos adhérents
+                Rejoignez notre réseau de syndicats partenaires
               </p>
               
               
                 href="mailto:partenariats@justijob.fr"
                 className="inline-flex items-center gap-3 bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-700 transition-all"
               >
-                📧 Nous contacter
+                Nous contacter
               </a>
             </div>
           </div>
