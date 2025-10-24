@@ -1,7 +1,7 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
-import { FiArrowLeft, FiLock, FiMail, FiUsers } from 'react-icons/fi';
 
 export default function SyndicatsPage() {
   return (
@@ -10,10 +10,9 @@ export default function SyndicatsPage() {
       <div className="container mx-auto px-4 py-6">
         <Link 
           href="/"
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors group"
+          className="inline-flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors font-medium"
         >
-          <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" />
-          <span className="font-medium">← Retour à l'accueil</span>
+          ← Retour à l'accueil
         </Link>
       </div>
 
@@ -23,12 +22,9 @@ export default function SyndicatsPage() {
           
           {/* Hero Section */}
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-3 mb-6">
-              <FiUsers className="text-5xl text-red-600" />
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-800">
-                Espace Syndicats
-              </h1>
-            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-6">
+              🤝 Espace Syndicats
+            </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Accédez à votre espace dédié et accompagnez vos adhérents dans leurs démarches juridiques
             </p>
@@ -48,10 +44,9 @@ export default function SyndicatsPage() {
               
               <Link
                 href="/syndicats/connexion"
-                className="inline-flex items-center gap-3 bg-red-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-red-700 transition-all transform hover:scale-105 shadow-lg"
+                className="inline-flex items-center gap-3 bg-red-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-red-700 transition-all shadow-lg"
               >
-                <FiLock className="text-xl" />
-                Se connecter
+                🔐 Se connecter
               </Link>
             </div>
 
@@ -80,8 +75,7 @@ export default function SyndicatsPage() {
                 href="mailto:partenariats@justijob.fr"
                 className="inline-flex items-center gap-3 bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-700 transition-all"
               >
-                <FiMail className="text-xl" />
-                Nous contacter
+                📧 Nous contacter
               </a>
             </div>
           </div>
