@@ -7,7 +7,7 @@ export default function FODashboard() {
     name: 'FO',
     fullName: 'Force Ouvriere',
     email: 'fo@justijob.fr',
-    color: 'orange',
+    color: 'amber',
     stats: {
       totalMembers: 1356,
       activeMembers: 967,
@@ -24,9 +24,9 @@ export default function FODashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-orange-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-amber-50">
       
-      <div className="bg-gradient-to-r from-orange-600 to-orange-700 text-white shadow-lg">
+      <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-lg">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -56,10 +56,10 @@ export default function FODashboard() {
           
           <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-4">
-              <div className="bg-orange-100 p-3 rounded-lg">
+              <div className="bg-amber-100 p-3 rounded-lg">
                 <span className="text-2xl">👥</span>
               </div>
-              <span className="text-orange-600 text-sm font-semibold">+10%</span>
+              <span className="text-amber-600 text-sm font-semibold">+10%</span>
             </div>
             <h3 className="text-3xl font-bold text-gray-800 mb-1">
               {syndicatInfo.stats.totalMembers}
@@ -121,7 +121,7 @@ export default function FODashboard() {
                   key={activity.id}
                   className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
                     <span>👤</span>
                   </div>
                   <div className="flex-1">
@@ -140,7 +140,7 @@ export default function FODashboard() {
               Actions rapides
             </h2>
             <div className="space-y-3">
-              <button className="w-full bg-orange-600 text-white py-3 px-4 rounded-lg hover:bg-orange-700 transition-colors font-semibold text-left flex items-center gap-3">
+              <button className="w-full bg-amber-600 text-white py-3 px-4 rounded-lg hover:bg-amber-700 transition-colors font-semibold text-left flex items-center gap-3">
                 <span>👥</span>
                 Gerer les membres
               </button>
@@ -158,11 +158,11 @@ export default function FODashboard() {
               </button>
             </div>
 
-            <div className="mt-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
-              <p className="text-sm text-orange-800 font-medium mb-2">
+            <div className="mt-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
+              <p className="text-sm text-amber-800 font-medium mb-2">
                 💡 Astuce du jour
               </p>
-              <p className="text-xs text-orange-700">
+              <p className="text-xs text-amber-700">
                 Utilisez JustiJob pour accompagner vos adherents dans leurs demarches juridiques !
               </p>
             </div>
