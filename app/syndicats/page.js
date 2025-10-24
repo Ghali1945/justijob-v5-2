@@ -22,7 +22,7 @@ export default function SyndicatsPage() {
               Espace Syndicats
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Accedez a votre espace dedie et accompagnez vos adherents
+              Accédez à votre espace dédié et accompagnez vos adherents
             </p>
           </div>
 
@@ -33,7 +33,7 @@ export default function SyndicatsPage() {
                 Vous etes un syndicat partenaire ?
               </h2>
               <p className="text-gray-600 mb-8">
-                Connectez-vous pour acceder a votre tableau de bord
+                Connectez-vous pour accéder à votre tableau de bord
               </p>
               
               <Link
