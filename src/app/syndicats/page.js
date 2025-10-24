@@ -13,7 +13,7 @@ export default function SyndicatsPage() {
           className="inline-flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors group"
         >
           <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" />
-          <span className="font-medium">Retour à l'accueil</span>
+          <span className="font-medium"> =Retour à l'accueil=</span>
         </Link>
       </div>
 
