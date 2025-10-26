@@ -62,7 +62,7 @@ export default function CGVPage() {
                 <li>Accès aux 4 calculateurs de droits (licenciement, congés payés, heures supplémentaires, prime d'ancienneté)</li>
                 <li>Diagnostic gratuit avec scoring par l'Agent IA Claude</li>
                 <li>Guide des procédures prud'homales</li>
-                <li>Conseils juridiques généraux</li>
+                <li>Informations juridiques générales liées aux cas</li>
               </ul>
             </div>
 
@@ -92,11 +92,11 @@ export default function CGVPage() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center p-3 bg-white rounded">
                   <span className="font-medium">Tarif grand public</span>
-                  <span className="text-2xl font-bold text-blue-600">90€ TTC</span>
+                  <span className="text-2xl font-bold text-blue-600">120€ TTC</span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-white rounded">
                   <span className="font-medium">Tarif adhérent syndical</span>
-                  <span className="text-2xl font-bold text-green-600">45€ TTC</span>
+                  <span className="text-2xl font-bold text-green-600">60€ TTC</span>
                 </div>
                 <p className="text-sm text-gray-600 italic">
                   * -50% sur présentation d'un code syndicat valide
@@ -112,7 +112,7 @@ export default function CGVPage() {
                 <li>Paiement en ligne via la plateforme sécurisée Stripe</li>
                 <li>Moyens acceptés : Carte bancaire (Visa, Mastercard, American Express)</li>
                 <li>Paiement exigible immédiatement à la commande</li>
-                <li>Option de paiement en 2 fois sans frais disponible (2×45€)</li>
+                <li>Option de paiement en 2 fois sans frais disponible (2×60€)</li>
               </ul>
             </div>
           </section>
