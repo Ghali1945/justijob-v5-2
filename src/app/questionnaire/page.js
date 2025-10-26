@@ -1,26 +1,66 @@
-
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Home, CheckCircle, Upload, Save, Send, AlertTriangle, FileText, User, Briefcase, Scale, Shield, Clock, ChevronRight } from 'lucide-react'
 
 export default function QuestionnairePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const sessionId = searchParams.get('session_id')
+  
   const [currentSection, setCurrentSection] = useState(1)
   const [isValid, setIsValid] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   
-  // Vérification du paiement (simulation)
+  // 🔥 NOUVEAU : Vérification du paiement Stripe
+  const [loading, setLoading] = useState(true)
+  const [paymentVerified, setPaymentVerified] = useState(false)
+  const [customerInfo, setCustomerInfo] = useState(null)
+  const [syndicatInfo, setSyndicatInfo] = useState(null)
+  const [error, setError] = useState(null)
+
+  // 🔥 NOUVEAU : Vérifier le paiement au chargement
   useEffect(() => {
-    // En production, vérifier le statut du paiement
-    const paymentStatus = localStorage.getItem('paymentComplete')
-    if (!paymentStatus) {
-      // Rediriger vers le paiement si non payé
-      // router.push('/paiement')
+    if (!sessionId) {
+      setError('Accès non autorisé. Veuillez effectuer un paiement.')
+      setLoading(false)
+      setTimeout(() => router.push('/paiement'), 3000)
+      return
     }
-  }, [])
+
+    verifyPayment()
+  }, [sessionId])
+
+  const verifyPayment = async () => {
+    try {
+      const response = await fetch(`/api/payment/verify-payment?session_id=${sessionId}`)
+      const data = await response.json()
+
+      if (data.verified) {
+        setPaymentVerified(true)
+        setCustomerInfo({
+          email: data.customerEmail,
+          name: data.customerName,
+          amount: data.amount,
+          paymentDate: data.paymentDate
+        })
+        
+        if (data.syndicatInfo) {
+          setSyndicatInfo(data.syndicatInfo)
+        }
+      } else {
+        setError('Paiement non vérifié. Veuillez contacter le support.')
+        setTimeout(() => router.push('/paiement'), 3000)
+      }
+    } catch (err) {
+      console.error('Erreur vérification:', err)
+      setError('Erreur de vérification. Veuillez réessayer.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const [formData, setFormData] = useState({
     // Section 1: Informations personnelles
@@ -79,7 +119,12 @@ export default function QuestionnairePage() {
       const response = await fetch('/api/generate-dossier', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          sessionId,
+          customerInfo,
+          syndicatInfo
+        })
       })
       
       if (response.ok) {
@@ -93,9 +138,35 @@ export default function QuestionnairePage() {
   }
 
   const handleSave = () => {
-    // Sauvegarder en localStorage
-    localStorage.setItem('questionnaire-draft', JSON.stringify(formData))
+    // Sauvegarder en localStorage avec session_id
+    localStorage.setItem(`questionnaire-draft-${sessionId}`, JSON.stringify(formData))
     alert('Questionnaire sauvegardé ! Vous pouvez reprendre plus tard.')
+  }
+
+  // 🔥 NOUVEAU : Écran de chargement pendant vérification
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-700">Vérification de votre paiement...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 🔥 NOUVEAU : Écran d'erreur si paiement non vérifié
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+          <div className="text-6xl mb-4">❌</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Accès refusé</h1>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <p className="text-sm text-gray-500">Redirection automatique...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -131,11 +202,36 @@ export default function QuestionnairePage() {
                 <Save className="w-4 h-4" />
                 <span className="hidden md:inline">Sauvegarder</span>
               </button>
-              <div className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                ✅ Accès Premium
+              
+              {/* 🔥 NOUVEAU : Badge Premium avec montant payé */}
+              <div className="flex items-center gap-2">
+                <div className="px-3 py-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded-full text-sm font-bold shadow-md">
+                  ⭐ PREMIUM
+                </div>
+                {/* 🔥 NOUVEAU : Badge syndicat si applicable */}
+                {syndicatInfo && (
+                  <div className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                    🏢 {syndicatInfo.syndicatName}
+                  </div>
+                )}
               </div>
             </div>
           </div>
+          
+          {/* 🔥 NOUVEAU : Info paiement sous le header */}
+          {customerInfo && (
+            <div className="pb-3 border-t pt-2">
+              <div className="flex items-center justify-between text-xs text-gray-600">
+                <span>Client : {customerInfo.name}</span>
+                <span>Paiement vérifié : {customerInfo.amount}€</span>
+                {syndicatInfo && (
+                  <span className="text-green-600 font-medium">
+                    Tarif syndical appliqué (-50%)
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
@@ -176,37 +272,52 @@ export default function QuestionnairePage() {
             <div className="mt-4 inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
               🤖 Analyse et génération par Claude AI
             </div>
+            
+            {/* 🔥 NOUVEAU : Info syndicat si applicable */}
+            {syndicatInfo && (
+              <div className="mt-3 inline-block bg-green-50 border border-green-200 rounded-lg px-6 py-3">
+                <p className="text-sm text-green-800">
+                  ✅ Commande enregistrée pour le syndicat <strong>{syndicatInfo.syndicatName}</strong>
+                </p>
+                <p className="text-xs text-green-600 mt-1">
+                  Code promo : {syndicatInfo.promoCode} • Réduction : {syndicatInfo.discount}%
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Progress */}
           <div className="mb-8">
             <div className="flex justify-between mb-4">
-              {sections.map((section) => (
-                <div
-                  key={section.id}
-                  className={`flex flex-col items-center cursor-pointer ${
-                    section.id === currentSection ? 'text-blue-600' : 
-                    section.id < currentSection ? 'text-green-600' : 'text-gray-400'
-                  }`}
-                  onClick={() => setCurrentSection(section.id)}
-                >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
-                    section.id === currentSection ? 'bg-blue-600 text-white' :
-                    section.id < currentSection ? 'bg-green-600 text-white' : 'bg-gray-200'
-                  }`}>
-                    {section.id < currentSection ? (
-                      <CheckCircle className="w-5 h-5" />
-                    ) : (
-                      <section.icon className="w-5 h-5" />
-                    )}
+              {sections.map((section) => {
+                const Icon = section.icon
+                return (
+                  <div
+                    key={section.id}
+                    className={`flex flex-col items-center cursor-pointer ${
+                      section.id === currentSection ? 'text-blue-600' : 
+                      section.id < currentSection ? 'text-green-600' : 'text-gray-400'
+                    }`}
+                    onClick={() => setCurrentSection(section.id)}
+                  >
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
+                      section.id === currentSection ? 'bg-blue-600 text-white' : 
+                      section.id < currentSection ? 'bg-green-600 text-white' : 'bg-gray-200'
+                    }`}>
+                      {section.id < currentSection ? (
+                        <CheckCircle className="w-5 h-5" />
+                      ) : (
+                        <Icon className="w-5 h-5" />
+                      )}
+                    </div>
+                    <span className="text-xs text-center hidden md:block">{section.title}</span>
                   </div>
-                  <span className="text-xs text-center hidden md:block">{section.title}</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
-            <div className="h-2 bg-gray-200 rounded-full">
-              <div
-                className="h-full bg-blue-600 rounded-full transition-all duration-300"
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${(currentSection / 6) * 100}%` }}
               />
             </div>
@@ -218,34 +329,38 @@ export default function QuestionnairePage() {
             {currentSection === 1 && (
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  Vos informations personnelles
+                  Informations personnelles
                 </h2>
                 
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nom *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.nom}
-                      onChange={(e) => setFormData({...formData, nom: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Prénom *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.prenom}
-                      onChange={(e) => setFormData({...formData, prenom: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
+                <div className="space-y-6">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nom *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.nom}
+                        onChange={(e) => setFormData({...formData, nom: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Votre nom"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Prénom *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.prenom}
+                        onChange={(e) => setFormData({...formData, prenom: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Votre prénom"
+                      />
+                    </div>
                   </div>
                   
                   <div>
@@ -254,77 +369,95 @@ export default function QuestionnairePage() {
                     </label>
                     <input
                       type="date"
+                      required
                       value={formData.dateNaissance}
                       onChange={(e) => setFormData({...formData, dateNaissance: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Téléphone *
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.telephone}
-                      onChange={(e) => setFormData({...formData, telephone: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email *
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Adresse complète *
                     </label>
                     <input
                       type="text"
+                      required
                       value={formData.adresse}
                       onChange={(e) => setFormData({...formData, adresse: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="Numéro et nom de rue"
-                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Numéro et rue"
                     />
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Code postal *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.codePostal}
-                      onChange={(e) => setFormData({...formData, codePostal: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Code postal *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.codePostal}
+                        onChange={(e) => setFormData({...formData, codePostal: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="75001"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Ville *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.ville}
+                        onChange={(e) => setFormData({...formData, ville: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Paris"
+                      />
+                    </div>
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Ville *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.ville}
-                      onChange={(e) => setFormData({...formData, ville: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Téléphone *
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        value={formData.telephone}
+                        onChange={(e) => setFormData({...formData, telephone: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="+33 6 12 34 56 78"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Email *
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={formData.email}
+                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="votre@email.fr"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                    <h3 className="font-semibold text-blue-900 mb-2">
+                      💡 Conseil de Claude AI
+                    </h3>
+                    <p className="text-sm text-gray-700">
+                      Vos coordonnées doivent correspondre exactement à celles de vos documents officiels (carte d'identité, contrat de travail). 
+                      Claude analysera tous les détails pour assurer la cohérence de votre dossier.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -334,7 +467,7 @@ export default function QuestionnairePage() {
             {currentSection === 2 && (
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  Votre situation professionnelle
+                  Situation professionnelle
                 </h2>
                 
                 <div className="space-y-6">
@@ -344,10 +477,11 @@ export default function QuestionnairePage() {
                     </label>
                     <input
                       type="text"
+                      required
                       value={formData.employeur}
                       onChange={(e) => setFormData({...formData, employeur: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Nom de l'entreprise"
                     />
                   </div>
                   
@@ -357,24 +491,25 @@ export default function QuestionnairePage() {
                     </label>
                     <input
                       type="text"
+                      required
                       value={formData.adresseEmployeur}
                       onChange={(e) => setFormData({...formData, adresseEmployeur: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Adresse complète de l'entreprise"
                     />
                   </div>
                   
-                  <div className="grid md:grid-cols-2 gap-6">
+                  <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Date d'embauche *
                       </label>
                       <input
                         type="date"
+                        required
                         value={formData.dateEmbauche}
                         onChange={(e) => setFormData({...formData, dateEmbauche: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        required
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
                     
@@ -386,7 +521,7 @@ export default function QuestionnairePage() {
                         type="date"
                         value={formData.dateFin}
                         onChange={(e) => setFormData({...formData, dateFin: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -397,25 +532,26 @@ export default function QuestionnairePage() {
                     </label>
                     <input
                       type="text"
+                      required
                       value={formData.poste}
                       onChange={(e) => setFormData({...formData, poste: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Intitulé exact du poste"
                     />
                   </div>
                   
-                  <div className="grid md:grid-cols-2 gap-6">
+                  <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Salaire mensuel brut *
+                        Salaire brut mensuel *
                       </label>
                       <input
                         type="number"
+                        required
                         value={formData.salaireBrut}
                         onChange={(e) => setFormData({...formData, salaireBrut: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="2500"
-                        required
                       />
                     </div>
                     
@@ -424,39 +560,42 @@ export default function QuestionnairePage() {
                         Type de contrat *
                       </label>
                       <select
+                        required
                         value={formData.typeContrat}
                         onChange={(e) => setFormData({...formData, typeContrat: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        required
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="">Sélectionnez...</option>
                         <option value="CDI">CDI</option>
                         <option value="CDD">CDD</option>
-                        <option value="Interim">Intérim</option>
-                        <option value="Apprentissage">Apprentissage</option>
-                        <option value="Professionnalisation">Professionnalisation</option>
+                        <option value="Intérim">Intérim</option>
+                        <option value="Alternance">Alternance</option>
+                        <option value="Stage">Stage</option>
                       </select>
                     </div>
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Convention collective
+                      Convention collective applicable
                     </label>
-                    <select
+                    <input
+                      type="text"
                       value={formData.convention}
                       onChange={(e) => setFormData({...formData, convention: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Je ne sais pas</option>
-                      <option value="syntec">Syntec</option>
-                      <option value="metallurgie">Métallurgie</option>
-                      <option value="batiment">Bâtiment</option>
-                      <option value="commerce">Commerce</option>
-                      <option value="restauration">HCR (Hôtels, Cafés, Restaurants)</option>
-                      <option value="transport">Transport</option>
-                      <option value="autre">Autre</option>
-                    </select>
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Ex: Convention collective de la métallurgie"
+                    />
+                  </div>
+                  
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                    <h3 className="font-semibold text-blue-900 mb-2">
+                      💡 Conseil de Claude AI
+                    </h3>
+                    <p className="text-sm text-gray-700">
+                      L'exactitude de vos dates et montants est cruciale. Claude utilisera ces informations 
+                      pour calculer précisément vos indemnités et vérifier le respect de vos droits.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -466,25 +605,25 @@ export default function QuestionnairePage() {
             {currentSection === 3 && (
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  Nature de votre litige
+                  Nature du litige
                 </h2>
                 
                 <div className="space-y-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-3">
-                      Type(s) de litige * (plusieurs choix possibles)
+                      Type de litige * (plusieurs choix possibles)
                     </label>
                     <div className="space-y-3">
                       {[
                         'Licenciement abusif',
-                        'Heures supplémentaires non payées',
-                        'Congés payés non pris',
-                        'Discrimination',
                         'Harcèlement moral',
                         'Harcèlement sexuel',
-                        'Non-paiement de salaire',
-                        'Prime non versée',
-                        'Rupture conventionnelle contestée',
+                        'Discrimination',
+                        'Heures supplémentaires non payées',
+                        'Salaires impayés',
+                        'Accident du travail',
+                        'Modification du contrat',
+                        'Non-respect des repos',
                         'Autre'
                       ].map((type) => (
                         <label key={type} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
@@ -498,6 +637,7 @@ export default function QuestionnairePage() {
                                 setFormData({...formData, typeLitige: formData.typeLitige.filter(t => t !== type)})
                               }
                             }}
+                            className="w-4 h-4 text-blue-600"
                           />
                           <span className="text-sm font-medium">{type}</span>
                         </label>
@@ -507,34 +647,42 @@ export default function QuestionnairePage() {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Description détaillée des faits * (minimum 200 caractères)
+                      Description détaillée de la situation * (minimum 100 caractères)
                     </label>
                     <textarea
+                      required
+                      minLength={100}
+                      rows={8}
                       value={formData.description}
                       onChange={(e) => setFormData({...formData, description: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      rows={8}
-                      placeholder="Décrivez précisément les faits, dates, personnes impliquées..."
-                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Décrivez précisément les faits, avec dates, lieux, personnes présentes, témoins éventuels..."
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      {formData.description.length}/200 caractères minimum • Claude AI analysera ces informations
+                      {formData.description.length} / 100 caractères minimum
                     </p>
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Estimation du préjudice financier (€)
+                      Montant estimé du préjudice (€)
                     </label>
                     <input
                       type="number"
                       value={formData.montantPrejudice}
                       onChange={(e) => setFormData({...formData, montantPrejudice: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="10000"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Estimation si vous en avez une"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Laissez vide si vous ne savez pas, Claude AI calculera pour vous
+                  </div>
+                  
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                    <h3 className="font-semibold text-blue-900 mb-2">
+                      💡 Conseil de Claude AI
+                    </h3>
+                    <p className="text-sm text-gray-700">
+                      Plus votre description est précise et factuelle, plus Claude pourra construire 
+                      un dossier solide avec des arguments juridiques pertinents et adaptés.
                     </p>
                   </div>
                 </div>
@@ -551,20 +699,20 @@ export default function QuestionnairePage() {
                 <div className="space-y-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-3">
-                      Documents en votre possession
+                      Documents à votre disposition
                     </label>
                     <div className="space-y-3">
                       {[
                         'Contrat de travail',
                         'Bulletins de salaire',
-                        'Lettres de licenciement',
-                        'Emails avec l\'employeur',
-                        'Courriers échangés',
-                        'Certificats médicaux',
-                        'Attestations Pôle Emploi',
-                        'Comptes-rendus d\'entretien',
-                        'SMS ou messages',
-                        'Enregistrements audio/vidéo'
+                        'Emails',
+                        'SMS',
+                        'Courriers recommandés',
+                        'Attestations médicales',
+                        'Certificats de travail',
+                        'Planning de travail',
+                        'Notes de service',
+                        'Témoignages écrits'
                       ].map((doc) => (
                         <label key={doc} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
                           <input
@@ -577,8 +725,9 @@ export default function QuestionnairePage() {
                                 setFormData({...formData, documents: formData.documents.filter(d => d !== doc)})
                               }
                             }}
+                            className="w-4 h-4 text-blue-600"
                           />
-                          <span className="text-sm">{doc}</span>
+                          <span className="text-sm font-medium">{doc}</span>
                         </label>
                       ))}
                     </div>
@@ -586,36 +735,27 @@ export default function QuestionnairePage() {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Upload de documents (optionnel)
-                    </label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-                      <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-600 mb-2">
-                        Glissez vos fichiers ici ou cliquez pour sélectionner
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        PDF, JPG, PNG jusqu'à 10 MB • Claude AI analysera vos documents
-                      </p>
-                      <input
-                        type="file"
-                        multiple
-                        className="hidden"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Témoins (nom et coordonnées)
+                      Témoins potentiels
                     </label>
                     <textarea
-                      placeholder="Ex: Jean Dupont - Collègue - 06 12 34 56 78"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       rows={4}
+                      value={formData.temoins.join('\n')}
+                      onChange={(e) => setFormData({...formData, temoins: e.target.value.split('\n').filter(t => t.trim())})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Nom et fonction de chaque témoin (un par ligne)&#10;Ex: Jean Dupont - Collègue de travail&#10;Marie Martin - Responsable RH"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Un témoin par ligne, avec nom et moyen de contact
+                  </div>
+                  
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+                    <h3 className="font-semibold text-amber-900 mb-2">
+                      📎 Upload de documents
+                    </h3>
+                    <p className="text-sm text-gray-700 mb-3">
+                      Vous pourrez uploader vos documents après la génération du dossier. 
+                      Pour l'instant, indiquez simplement ceux que vous possédez.
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Claude analysera ensuite vos documents et les intégrera dans votre dossier final.
                     </p>
                   </div>
                 </div>
@@ -630,35 +770,32 @@ export default function QuestionnairePage() {
                 </h2>
                 
                 <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      Avez-vous déjà entrepris des démarches ?
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                      <input
+                        type="checkbox"
+                        checked={formData.mediationTentee}
+                        onChange={(e) => setFormData({...formData, mediationTentee: e.target.checked})}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <div>
+                        <p className="font-medium">Médiation ou conciliation tentée</p>
+                        <p className="text-sm text-gray-600">Avez-vous essayé de résoudre le conflit à l'amiable ?</p>
+                      </div>
                     </label>
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
-                        <input
-                          type="checkbox"
-                          checked={formData.mediationTentee}
-                          onChange={(e) => setFormData({...formData, mediationTentee: e.target.checked})}
-                        />
-                        <div>
-                          <p className="font-medium">Médiation ou conciliation</p>
-                          <p className="text-sm text-gray-600">Tentative de résolution amiable</p>
-                        </div>
-                      </label>
-                      
-                      <label className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
-                        <input
-                          type="checkbox"
-                          checked={formData.inspectionTravail}
-                          onChange={(e) => setFormData({...formData, inspectionTravail: e.target.checked})}
-                        />
-                        <div>
-                          <p className="font-medium">Inspection du travail</p>
-                          <p className="text-sm text-gray-600">Signalement ou plainte déposée</p>
-                        </div>
-                      </label>
-                    </div>
+                    
+                    <label className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                      <input
+                        type="checkbox"
+                        checked={formData.inspectionTravail}
+                        onChange={(e) => setFormData({...formData, inspectionTravail: e.target.checked})}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <div>
+                        <p className="font-medium">Saisine de l'inspection du travail</p>
+                        <p className="text-sm text-gray-600">Avez-vous contacté l'inspection du travail ?</p>
+                      </div>
+                    </label>
                   </div>
                   
                   <div>
@@ -668,7 +805,7 @@ export default function QuestionnairePage() {
                     <textarea
                       value={formData.proceduresEngagees}
                       onChange={(e) => setFormData({...formData, proceduresEngagees: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       rows={4}
                       placeholder="Décrivez les démarches entreprises, dates, résultats..."
                     />
@@ -722,6 +859,7 @@ export default function QuestionnairePage() {
                                 setFormData({...formData, objectifs: formData.objectifs.filter(o => o !== objectif)})
                               }
                             }}
+                            className="w-4 h-4 text-blue-600"
                           />
                           <span className="text-sm font-medium">{objectif}</span>
                         </label>
@@ -736,7 +874,7 @@ export default function QuestionnairePage() {
                     <select
                       value={formData.disponibilite}
                       onChange={(e) => setFormData({...formData, disponibilite: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Sélectionnez...</option>
                       <option value="flexible">Flexible - Je peux m'adapter</option>
@@ -751,6 +889,7 @@ export default function QuestionnairePage() {
                         type="checkbox"
                         checked={formData.avocat}
                         onChange={(e) => setFormData({...formData, avocat: e.target.checked})}
+                        className="w-4 h-4 text-blue-600"
                       />
                       <div>
                         <p className="font-medium">Je souhaite être assisté par un avocat</p>
@@ -774,6 +913,15 @@ export default function QuestionnairePage() {
                       <li>• Un guide de procédure étape par étape</li>
                       <li>• L'estimation de vos chances de succès</li>
                     </ul>
+                    
+                    {/* 🔥 NOUVEAU : Info syndicat dans le dossier */}
+                    {syndicatInfo && (
+                      <div className="mt-4 pt-4 border-t border-green-300">
+                        <p className="text-sm font-medium text-green-900">
+                          📊 Statistiques {syndicatInfo.syndicatName} incluses dans le dossier
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -833,6 +981,10 @@ export default function QuestionnairePage() {
             </p>
             <p className="text-xs text-gray-500 mt-1">
               Technologie de pointe en intelligence artificielle juridique
+            </p>
+            {/* 🔥 NOUVEAU : Info session */}
+            <p className="text-xs text-gray-400 mt-2">
+              Session : {sessionId?.substring(0, 20)}... • Paiement vérifié ✅
             </p>
           </div>
         </div>
