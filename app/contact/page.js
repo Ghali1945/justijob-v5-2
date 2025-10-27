@@ -178,7 +178,8 @@ export default function ContactPage() {
                       <p className="text-gray-600 text-sm">
                         JustiJob SAS<br />
                         SIREN: 992 255 745<br />
-                        Paris, France
+                        5 rue de la réunion 
+                        75020 - Paris, France
                       </p>
                     </div>
                   </div>
