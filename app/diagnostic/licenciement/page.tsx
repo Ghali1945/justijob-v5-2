@@ -286,7 +286,7 @@ export default function DiagnosticLicenciement() {
                   </linearGradient>
                 </defs>
               </svg>
-              <div className="absolute">
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <div className="text-5xl font-bold text-gray-900">{results.score}</div>
                 <div className="text-sm text-gray-600">/100</div>
               </div>
@@ -1340,34 +1340,37 @@ export default function DiagnosticLicenciement() {
           )}
 
           {/* Navigation */}
-          <div className="mt-8 flex justify-between items-center pt-6 border-t">
-            {currentStep > 1 && (
-              <button
-                onClick={prevStep}
-                className="px-6 py-3 text-gray-600 hover:text-gray-900 font-medium flex items-center gap-2"
-              >
-                <span>←</span>
-                <span>Retour</span>
-              </button>
-            )}
+          <div className="mt-8 pt-6 border-t bg-white rounded-lg shadow-lg p-6">
+            <div className="flex justify-between items-center gap-4">
+              {currentStep > 1 && (
+                <button
+                  onClick={prevStep}
+                  className="px-6 py-3 text-gray-600 hover:text-gray-900 font-medium flex items-center gap-2"
+                >
+                  <span>←</span>
+                  <span>Retour</span>
+                </button>
+              )}
 
-            {currentStep < totalSteps ? (
-              <button
-                onClick={nextStep}
-                className="ml-auto px-8 py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg font-semibold hover:shadow-xl transition-all flex items-center gap-2"
-              >
-                <span>Suivant</span>
-                <span>→</span>
-              </button>
-            ) : (
-              <button
-                onClick={handleSubmit}
-                className="ml-auto px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-semibold hover:shadow-xl transition-all flex items-center gap-2"
-              >
-                <span>✓</span>
-                <span>Voir mes résultats</span>
-              </button>
-            )}
+              {currentStep < totalSteps ? (
+                <button
+                  onClick={nextStep}
+                  className="ml-auto px-8 py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg font-semibold hover:shadow-xl transition-all flex items-center gap-2"
+                >
+                  <span>Suivant</span>
+                  <span>→</span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleSubmit}
+                  className="w-full px-8 py-5 bg-red-600 text-white rounded-xl font-bold text-xl shadow-2xl hover:bg-red-700 hover:scale-105 transition-all flex items-center justify-center gap-3 border-4 border-red-800"
+                  style={{ fontSize: '20px' }}
+                >
+                  <span className="text-2xl">✓</span>
+                  <span>VOIR MES RÉSULTATS</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Info sécurité */}
