@@ -159,8 +159,7 @@ export default function DiagnosticSalaireImpaye() {
     score = details.preuves + details.montantAnciennete + details.gravite + details.contexte
 
     // CALCUL DES SOMMES DUES
-    const montantTotal = parseFloat(formData.montantTotal) || 0
-    const moisImpaye = parseFloat(formData.moisImpaye) || 0
+    // montantTotal et moisImpaye déjà déclarés plus haut
     const datePaiement = formData.datePaiementPrevue ? new Date(formData.datePaiementPrevue) : new Date()
     const aujourdhui = new Date()
     const joursRetard = Math.max(0, Math.floor((aujourdhui - datePaiement) / (1000 * 60 * 60 * 24)))
