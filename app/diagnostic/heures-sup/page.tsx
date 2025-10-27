@@ -222,7 +222,7 @@ export default function DiagnosticHeuresSup() {
                   </linearGradient>
                 </defs>
               </svg>
-              <div className="absolute">
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <div className="text-5xl font-bold text-gray-900">{results.score}</div>
                 <div className="text-sm text-gray-600">/100</div>
               </div>
@@ -1042,7 +1042,7 @@ export default function DiagnosticHeuresSup() {
             ) : (
               <button
                 onClick={handleSubmit}
-                className="ml-auto px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-semibold hover:shadow-xl transition-all flex items-center gap-2"
+                className="w-full md:ml-auto md:w-auto px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-bold text-lg hover:shadow-2xl transition-all flex items-center justify-center gap-2"
               >
                 <span>✓</span>
                 <span>Voir mes résultats</span>
