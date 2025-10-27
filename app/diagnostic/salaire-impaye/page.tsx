@@ -1,1180 +1,1257 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import Link from 'next/link';
-
-// ============================================================================
-// TYPES & INTERFACES
-// ============================================================================
-
-interface FormData {
-  // ÉTAPE 1 : Informations générales
-  typeContrat: string;
-  anciennete: string;
-  salaireBrutMensuel: string;
-  dernierJourTravaille: string;
-  
-  // ÉTAPE 2 : Détails du non-paiement
-  periodeImpayee: string;
-  elementsImpayes: string[];
-  montantTotalDu: string;
-  datePaiementPrevu: string;
-  nombreMoisImpayes: string;
-  
-  // ÉTAPE 3 : Contexte et circonstances
-  raisonInvoquee: string;
-  situationEntreprise: string;
-  autresSalariesConcernes: string;
-  demarchesEffectuees: string[];
-  
-  // ÉTAPE 4 : Preuves disponibles
-  preuvesDisponibles: string[];
-  qualitePreuves: string;
-  
-  // ÉTAPE 5 : Réclamations et suite
-  reclamationsEcrites: string;
-  reponseEmployeur: string;
-  ruptureContrat: string;
-  procedurePrudhomale: string;
-}
-
-// ============================================================================
-// COMPOSANT PRINCIPAL
-// ============================================================================
+import { useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 export default function DiagnosticSalaireImpaye() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [showResults, setShowResults] = useState(false);
-  const [formData, setFormData] = useState<FormData>({
-    // Étape 1
+  const router = useRouter()
+  const [currentStep, setCurrentStep] = useState(1)
+  const [showResults, setShowResults] = useState(false)
+  
+  const [formData, setFormData] = useState({
+    // Informations générales
     typeContrat: '',
     anciennete: '',
-    salaireBrutMensuel: '',
+    salaireBrut: '',
     dernierJourTravaille: '',
+    toujoursSalarie: '',
     
-    // Étape 2
-    periodeImpayee: '',
-    elementsImpayes: [],
-    montantTotalDu: '',
-    datePaiementPrevu: '',
-    nombreMoisImpayes: '',
+    // Détails du non-paiement
+    moisImpaye: '',
+    elementsImpaye: [],
+    montantTotal: '',
+    datePaiementPrevue: '',
+    delaiRetard: '',
     
-    // Étape 3
-    raisonInvoquee: '',
+    // Contexte
+    raisonEmployeur: '',
     situationEntreprise: '',
     autresSalariesConcernes: '',
-    demarchesEffectuees: [],
     
-    // Étape 4
-    preuvesDisponibles: [],
-    qualitePreuves: '',
+    // Preuves
+    preuvesContrat: false,
+    preuvesBulletins: false,
+    preuvesEmails: false,
+    preuvesRelevesBancaires: false,
+    preuvesMiseEnDemeure: false,
+    preuvesTemoins: false,
+    preuvesJustificatifsPresence: false,
     
-    // Étape 5
-    reclamationsEcrites: '',
+    // Réclamations
+    reclamationFaite: '',
     reponseEmployeur: '',
     ruptureContrat: '',
-    procedurePrudhomale: '',
-  });
+    conseilPrudhommes: ''
+  })
 
-  // ============================================================================
-  // FONCTIONS UTILITAIRES
-  // ============================================================================
+  const totalSteps = 5
 
-  const handleInputChange = (field: keyof FormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
 
-  const handleCheckboxChange = (field: keyof FormData, value: string) => {
-    const currentValues = formData[field] as string[];
-    const newValues = currentValues.includes(value)
-      ? currentValues.filter(v => v !== value)
-      : [...currentValues, value];
-    setFormData(prev => ({ ...prev, [field]: newValues }));
-  };
+  const toggleElement = (element) => {
+    const current = formData.elementsImpaye || []
+    if (current.includes(element)) {
+      setFormData(prev => ({
+        ...prev,
+        elementsImpaye: current.filter(e => e !== element)
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        elementsImpaye: [...current, element]
+      }))
+    }
+  }
 
   const nextStep = () => {
-    if (currentStep < 5) {
-      setCurrentStep(currentStep + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      setShowResults(true);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1)
     }
-  };
+  }
 
   const prevStep = () => {
     if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setCurrentStep(currentStep - 1)
     }
-  };
-
-  // ============================================================================
-  // CALCUL DU SCORE
-  // ============================================================================
+  }
 
   const calculateScore = () => {
-    let score = 0;
-
-    // 1. PREUVES DOCUMENTAIRES (35 points)
-    const preuvesPoints: { [key: string]: number } = {
-      'Contrat de travail signé': 8,
-      'Bulletins de salaire des mois impayés': 10,
-      'Courriers recommandés ou emails': 6,
-      'Relevés bancaires': 5,
-      'Mise en demeure envoyée': 4,
-      'Témoignages de collègues': 2,
-    };
-    
-    formData.preuvesDisponibles.forEach(preuve => {
-      score += preuvesPoints[preuve] || 0;
-    });
-
-    // Qualité des preuves
-    const qualiteBonus = {
-      'Excellente - Documents originaux complets': 5,
-      'Bonne - La plupart des documents': 3,
-      'Moyenne - Quelques documents': 1,
-      'Faible - Peu de documents': 0,
-    };
-    score += qualiteBonus[formData.qualitePreuves as keyof typeof qualiteBonus] || 0;
-
-    // 2. MONTANT ET ANCIENNETÉ (25 points)
-    const montant = parseFloat(formData.montantTotalDu) || 0;
-    if (montant >= 10000) score += 15;
-    else if (montant >= 5000) score += 12;
-    else if (montant >= 3000) score += 9;
-    else if (montant >= 1500) score += 6;
-    else score += 3;
-
-    const anciennitePoints = {
-      'Plus de 5 ans': 10,
-      'Entre 2 et 5 ans': 7,
-      'Entre 1 et 2 ans': 5,
-      'Entre 6 mois et 1 an': 3,
-      'Moins de 6 mois': 1,
-    };
-    score += anciennitePoints[formData.anciennete as keyof typeof anciennitePoints] || 0;
-
-    // 3. GRAVITÉ DU MANQUEMENT (25 points)
-    const nombreMois = parseInt(formData.nombreMoisImpayes) || 0;
-    if (nombreMois >= 4) score += 15;
-    else if (nombreMois >= 3) score += 12;
-    else if (nombreMois >= 2) score += 9;
-    else score += 6;
-
-    const elementsImpayes = formData.elementsImpayes.length;
-    score += Math.min(elementsImpayes * 2, 10);
-
-    // 4. CONTEXTE FAVORABLE (15 points)
-    const demarchesPoints = {
-      'Réclamation orale': 2,
-      'Email ou courrier simple': 3,
-      'Mise en demeure recommandée': 5,
-      'Saisine de l\'inspection du travail': 3,
-      'Prise de contact avec un avocat': 2,
-    };
-    
-    formData.demarchesEffectuees.forEach(demarche => {
-      score += demarchesPoints[demarche as keyof typeof demarchesPoints] || 0;
-    });
-
-    return Math.min(Math.round(score), 100);
-  };
-
-  // ============================================================================
-  // CALCULS FINANCIERS
-  // ============================================================================
-
-  const calculateFinancialImpact = () => {
-    const montantDu = parseFloat(formData.montantTotalDu) || 0;
-    const nombreMois = parseInt(formData.nombreMoisImpayes) || 1;
-    
-    // Calcul des intérêts légaux (environ 4.3% annuel)
-    const tauxInteret = 0.043;
-    const dureeEnMois = nombreMois;
-    const interetsLegaux = montantDu * (tauxInteret / 12) * dureeEnMois;
-    
-    // Dommages et intérêts selon la gravité
-    let dommagesInterets = 0;
-    if (nombreMois >= 4) {
-      dommagesInterets = montantDu * 0.20; // 20% pour manquement grave
-    } else if (nombreMois >= 3) {
-      dommagesInterets = montantDu * 0.15; // 15%
-    } else if (nombreMois >= 2) {
-      dommagesInterets = montantDu * 0.10; // 10%
-    } else {
-      dommagesInterets = montantDu * 0.05; // 5%
-    }
-    
-    const totalRecuperable = montantDu + interetsLegaux + dommagesInterets;
-    
-    return {
-      montantDu,
-      interetsLegaux,
-      dommagesInterets,
-      totalRecuperable,
-    };
-  };
-
-  // ============================================================================
-  // RECOMMANDATIONS PERSONNALISÉES
-  // ============================================================================
-
-  const getRecommendations = () => {
-    const score = calculateScore();
-    const nombreMois = parseInt(formData.nombreMoisImpayes) || 1;
-    const hasStrongProof = formData.preuvesDisponibles.includes('Contrat de travail signé') &&
-                           formData.preuvesDisponibles.includes('Bulletins de salaire des mois impayés');
-    
-    const recommendations = [];
-
-    if (score >= 75) {
-      recommendations.push({
-        icon: '⚖️',
-        title: 'Dossier solide - Action immédiate recommandée',
-        description: 'Votre situation présente tous les éléments pour une action en justice réussie.',
-        priority: 'high',
-      });
+    let score = 0
+    let details = {
+      preuves: 0,
+      montantAnciennete: 0,
+      gravite: 0,
+      contexte: 0
     }
 
-    if (!formData.demarchesEffectuees.includes('Mise en demeure recommandée')) {
-      recommendations.push({
-        icon: '📮',
-        title: 'Envoyez une mise en demeure',
-        description: 'Élément indispensable avant toute action en justice. Modèle disponible dans votre dossier.',
-        priority: 'high',
-      });
+    // 1. PREUVES DOCUMENTAIRES (35 points max)
+    const preuvesList = [
+      formData.preuvesContrat,
+      formData.preuvesBulletins,
+      formData.preuvesEmails,
+      formData.preuvesRelevesBancaires,
+      formData.preuvesMiseEnDemeure,
+      formData.preuvesTemoins,
+      formData.preuvesJustificatifsPresence
+    ]
+    const nombrePreuves = preuvesList.filter(p => p).length
+    
+    if (nombrePreuves >= 5) details.preuves = 35
+    else if (nombrePreuves === 4) details.preuves = 28
+    else if (nombrePreuves === 3) details.preuves = 21
+    else if (nombrePreuves === 2) details.preuves = 14
+    else if (nombrePreuves === 1) details.preuves = 7
+
+    // Bonus pour preuves critiques
+    if (formData.preuvesContrat) details.preuves = Math.min(35, details.preuves + 3)
+    if (formData.preuvesBulletins) details.preuves = Math.min(35, details.preuves + 3)
+    if (formData.preuvesMiseEnDemeure) details.preuves = Math.min(35, details.preuves + 4)
+
+    // 2. MONTANT ET ANCIENNETÉ (25 points max)
+    const anciennete = parseFloat(formData.anciennete) || 0
+    const montantTotal = parseFloat(formData.montantTotal) || 0
+    
+    // Ancienneté
+    if (anciennete >= 2) details.montantAnciennete += 10
+    else if (anciennete >= 1) details.montantAnciennete += 7
+    else if (anciennete >= 0.5) details.montantAnciennete += 4
+    
+    // Montant
+    if (montantTotal >= 10000) details.montantAnciennete += 15
+    else if (montantTotal >= 5000) details.montantAnciennete += 12
+    else if (montantTotal >= 3000) details.montantAnciennete += 9
+    else if (montantTotal >= 1500) details.montantAnciennete += 6
+    else if (montantTotal > 0) details.montantAnciennete += 3
+
+    // 3. GRAVITÉ DU MANQUEMENT (25 points max)
+    // Nombre de mois impayés
+    const moisImpaye = parseFloat(formData.moisImpaye) || 0
+    if (moisImpaye >= 3) details.gravite += 15
+    else if (moisImpaye >= 2) details.gravite += 10
+    else if (moisImpaye >= 1) details.gravite += 5
+    
+    // Délai de retard
+    if (formData.delaiRetard === 'plus_3_mois') details.gravite += 10
+    else if (formData.delaiRetard === '1_3_mois') details.gravite += 7
+    else if (formData.delaiRetard === 'moins_1_mois') details.gravite += 4
+
+    // 4. CONTEXTE FAVORABLE (15 points max)
+    // Réclamation effectuée
+    if (formData.reclamationFaite === 'oui_ecrit') details.contexte += 8
+    else if (formData.reclamationFaite === 'oui_oral') details.contexte += 4
+    
+    // Autres salariés concernés
+    if (formData.autresSalariesConcernes === 'oui') details.contexte += 5
+    
+    // Toujours salarié (peut prouver le travail effectué)
+    if (formData.toujoursSalarie === 'oui') details.contexte += 2
+
+    // Limiter chaque catégorie à son max
+    details.preuves = Math.min(35, details.preuves)
+    details.montantAnciennete = Math.min(25, details.montantAnciennete)
+    details.gravite = Math.min(25, details.gravite)
+    details.contexte = Math.min(15, details.contexte)
+
+    // CALCUL TOTAL
+    score = details.preuves + details.montantAnciennete + details.gravite + details.contexte
+
+    // CALCUL DES SOMMES DUES
+    const montantTotal = parseFloat(formData.montantTotal) || 0
+    const moisImpaye = parseFloat(formData.moisImpaye) || 0
+    const datePaiement = formData.datePaiementPrevue ? new Date(formData.datePaiementPrevue) : new Date()
+    const aujourdhui = new Date()
+    const joursRetard = Math.max(0, Math.floor((aujourdhui - datePaiement) / (1000 * 60 * 60 * 24)))
+    
+    let sommes = {
+      salaireDu: montantTotal,
+      interetsLegaux: 0,
+      dommagesInterets: 0,
+      total: 0
     }
 
-    if (nombreMois >= 2) {
-      recommendations.push({
-        icon: '⚠️',
-        title: 'Urgence - Délais de prescription',
-        description: 'Le délai de prescription est de 3 ans. Agissez rapidement pour préserver vos droits.',
-        priority: 'high',
-      });
+    if (montantTotal > 0 && joursRetard > 0) {
+      // Intérêts légaux (taux 2024 : ~4.3% pour professionnels)
+      const tauxInteret = 0.043
+      sommes.interetsLegaux = (montantTotal * tauxInteret * joursRetard) / 365
+      
+      // Dommages et intérêts (selon gravité)
+      if (score >= 70) {
+        // Manquement grave
+        if (moisImpaye >= 3) {
+          sommes.dommagesInterets = montantTotal * 0.3 // 30% du salaire dû
+        } else if (moisImpaye >= 2) {
+          sommes.dommagesInterets = montantTotal * 0.2
+        } else {
+          sommes.dommagesInterets = montantTotal * 0.1
+        }
+      } else if (score >= 50) {
+        sommes.dommagesInterets = montantTotal * 0.05
+      }
+
+      sommes.total = sommes.salaireDu + sommes.interetsLegaux + sommes.dommagesInterets
     }
 
-    if (!hasStrongProof) {
-      recommendations.push({
-        icon: '📑',
-        title: 'Renforcez vos preuves',
-        description: 'Rassemblez tous documents possibles : contrat, bulletins, emails, SMS.',
-        priority: 'medium',
-      });
-    }
+    return { score: Math.min(100, score), details, sommes, joursRetard }
+  }
 
-    if (formData.situationEntreprise === 'Difficultés financières graves') {
-      recommendations.push({
-        icon: '🏦',
-        title: 'Vérifiez la procédure collective',
-        description: 'Si l\'entreprise est en liquidation, déclarez rapidement votre créance.',
-        priority: 'high',
-      });
-    }
+  const handleSubmit = () => {
+    setShowResults(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
-    recommendations.push({
-      icon: '👨‍⚖️',
-      title: 'Conseil d\'un avocat spécialisé',
-      description: 'Un avocat en droit du travail maximisera vos chances de succès.',
-      priority: 'medium',
-    });
+  const results = showResults ? calculateScore() : null
 
-    return recommendations;
-  };
-
-  // ============================================================================
-  // RENDU CONDITIONNEL - PAGE DE RÉSULTATS
-  // ============================================================================
-
-  if (showResults) {
-    const score = calculateScore();
-    const financial = calculateFinancialImpact();
-    const recommendations = getRecommendations();
-
+  if (showResults && results) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 shadow-sm">
-          <div className="max-w-6xl mx-auto px-6 py-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  💰 Diagnostic Salaire Impayé
-                </h1>
-                <p className="text-gray-600 mt-2">Analyse complète de votre situation</p>
-              </div>
-              <Link 
-                href="/diagnostic"
-                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all"
-              >
-                ← Retour
+        <header className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex justify-between items-center">
+              <Link href="/" className="flex items-center space-x-2">
+                <span className="text-2xl font-bold">
+                  <span className="text-blue-600">JUSTI</span>
+                  <span className="text-gray-900">JOB</span>
+                </span>
+              </Link>
+              <Link href="/diagnostic">
+                <button className="text-gray-600 hover:text-blue-600 font-medium">
+                  ← Nouveau diagnostic
+                </button>
               </Link>
             </div>
           </div>
-        </div>
+        </header>
 
-        {/* Contenu des résultats */}
-        <div className="max-w-6xl mx-auto px-6 py-12">
+        {/* Résultats */}
+        <div className="max-w-4xl mx-auto px-4 py-12">
           {/* Score principal */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-800 mb-4">
-                Votre Score de Solidité Juridique
-              </h2>
-              <p className="text-gray-600">
-                Basé sur {formData.preuvesDisponibles.length + formData.demarchesEffectuees.length} critères analysés
-              </p>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 mb-8 text-center">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-green-600 to-emerald-600 rounded-full mb-6">
+              <span className="text-4xl">💰</span>
             </div>
-
-            <div className="flex justify-center items-center mb-8">
-              {/* Cercle de score - CORRIGÉ POUR CENTRAGE */}
-              <div className="relative w-64 h-64">
-                <svg className="w-full h-full transform -rotate-90">
-                  <circle
-                    cx="128"
-                    cy="128"
-                    r="120"
-                    stroke="#e5e7eb"
-                    strokeWidth="16"
-                    fill="none"
-                  />
-                  <circle
-                    cx="128"
-                    cy="128"
-                    r="120"
-                    stroke={score >= 75 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444'}
-                    strokeWidth="16"
-                    fill="none"
-                    strokeDasharray={`${(score / 100) * 753.6} 753.6`}
-                    strokeLinecap="round"
-                    className="transition-all duration-1000 ease-out"
-                  />
-                </svg>
-                {/* CORRECTION : Ajout de inset-0 flex flex-col items-center justify-center */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <div className="text-6xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                    {score}
-                  </div>
-                  <div className="text-2xl text-gray-600 font-semibold">/100</div>
-                  <div className="text-sm text-gray-500 mt-2 font-medium">
-                    {score >= 75 ? 'Excellent' : score >= 50 ? 'Correct' : 'À renforcer'}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Interprétation du score */}
-            <div className={`p-6 rounded-xl ${
-              score >= 75 ? 'bg-green-50 border-2 border-green-200' :
-              score >= 50 ? 'bg-amber-50 border-2 border-amber-200' :
-              'bg-red-50 border-2 border-red-200'
-            }`}>
-              <h3 className="text-xl font-bold mb-3 flex items-center gap-3">
-                {score >= 75 ? '✅' : score >= 50 ? '⚠️' : '❌'}
-                {score >= 75 ? 'Dossier très solide' :
-                 score >= 50 ? 'Dossier à renforcer' :
-                 'Dossier nécessitant amélioration'}
-              </h3>
-              <p className="text-gray-700 leading-relaxed">
-                {score >= 75 ? 
-                  'Votre dossier présente de solides arguments juridiques et des preuves convaincantes. Vous avez d\'excellentes chances d\'obtenir gain de cause aux prud\'hommes.' :
-                 score >= 50 ?
-                  'Votre dossier contient des éléments favorables mais pourrait être renforcé. Suivez nos recommandations pour maximiser vos chances de succès.' :
-                  'Votre dossier nécessite d\'être renforcé avant d\'engager une procédure. Concentrez-vous sur la collecte de preuves et les démarches préalables.'}
-              </p>
-            </div>
-          </div>
-
-          {/* Calculs financiers */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-              💰 Montants récupérables estimés
-            </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="p-6 bg-blue-50 rounded-xl border-2 border-blue-200">
-                <div className="text-sm text-blue-600 font-semibold mb-2">Salaire impayé</div>
-                <div className="text-3xl font-bold text-blue-900">
-                  {financial.montantDu.toLocaleString('fr-FR', {
-                    style: 'currency',
-                    currency: 'EUR',
-                  })}
-                </div>
-              </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              Résultats de votre diagnostic
+            </h1>
+            <p className="text-gray-600 mb-8">
+              Salaire impayé - Analyse de votre situation
+            </p>
 
-              <div className="p-6 bg-purple-50 rounded-xl border-2 border-purple-200">
-                <div className="text-sm text-purple-600 font-semibold mb-2">Intérêts légaux</div>
-                <div className="text-3xl font-bold text-purple-900">
-                  {financial.interetsLegaux.toLocaleString('fr-FR', {
-                    style: 'currency',
-                    currency: 'EUR',
-                  })}
-                </div>
-                <div className="text-xs text-purple-600 mt-1">Taux légal ~4.3%</div>
-              </div>
-
-              <div className="p-6 bg-amber-50 rounded-xl border-2 border-amber-200">
-                <div className="text-sm text-amber-600 font-semibold mb-2">Dommages et intérêts</div>
-                <div className="text-3xl font-bold text-amber-900">
-                  {financial.dommagesInterets.toLocaleString('fr-FR', {
-                    style: 'currency',
-                    currency: 'EUR',
-                  })}
-                </div>
-                <div className="text-xs text-amber-600 mt-1">Selon gravité</div>
-              </div>
-
-              <div className="p-6 bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl border-2 border-green-300">
-                <div className="text-sm text-green-700 font-semibold mb-2">TOTAL ESTIMÉ</div>
-                <div className="text-4xl font-bold text-green-900">
-                  {financial.totalRecuperable.toLocaleString('fr-FR', {
-                    style: 'currency',
-                    currency: 'EUR',
-                  })}
-                </div>
+            {/* Score circulaire */}
+            <div className="relative inline-flex items-center justify-center w-48 h-48 mb-8">
+              <svg className="w-48 h-48 transform -rotate-90">
+                <circle cx="96" cy="96" r="88" stroke="#e5e7eb" strokeWidth="12" fill="none" />
+                <circle
+                  cx="96" cy="96" r="88"
+                  stroke="url(#gradient3)"
+                  strokeWidth="12"
+                  fill="none"
+                  strokeDasharray={`${(results.score / 100) * 552} 552`}
+                  strokeLinecap="round"
+                />
+                <defs>
+                  <linearGradient id="gradient3" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#059669" />
+                    <stop offset="100%" stopColor="#10b981" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <div className="text-5xl font-bold text-gray-900">{results.score}</div>
+                <div className="text-sm text-gray-600">/100</div>
               </div>
             </div>
 
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-sm text-gray-600">
-                <strong>💡 Note :</strong> Ces montants sont des estimations basées sur les informations fournies. 
-                Les montants réels dépendront de la décision du conseil de prud'hommes et de votre situation spécifique.
+            {/* Interprétation */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 mb-6">
+              <h3 className="font-bold text-gray-900 mb-2">
+                {results.score >= 75 ? '🎯 Dossier très solide !' :
+                 results.score >= 50 ? '👍 Dossier recevable' :
+                 results.score >= 30 ? '⚠️ Dossier à renforcer' :
+                 '📋 Dossier faible'}
+              </h3>
+              <p className="text-gray-700 text-sm">
+                {results.score >= 75 ? 'Votre dossier est excellent. Le non-paiement du salaire est caractérisé et vous avez les preuves nécessaires.' :
+                 results.score >= 50 ? 'Votre dossier présente des éléments solides. Une action aux prud\'hommes est envisageable.' :
+                 results.score >= 30 ? 'Votre dossier nécessite d\'être renforcé avec des preuves supplémentaires.' :
+                 'Votre dossier manque de preuves documentaires. Rassemblez plus d\'éléments avant d\'agir.'}
               </p>
             </div>
+
+            {/* Sommes dues */}
+            {results.sommes.total > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+                <div className="text-sm text-green-800 font-medium mb-4">
+                  💰 Sommes récupérables estimées
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
+                  <div className="text-left">
+                    <div className="text-gray-600">Salaire dû</div>
+                    <div className="font-bold text-gray-900 text-lg">{Math.round(results.sommes.salaireDu).toLocaleString()} €</div>
+                  </div>
+                  <div className="text-left">
+                    <div className="text-gray-600">Intérêts légaux</div>
+                    <div className="font-bold text-gray-900 text-lg">{Math.round(results.sommes.interetsLegaux).toLocaleString()} €</div>
+                    <div className="text-xs text-gray-500">{results.joursRetard} jours de retard</div>
+                  </div>
+                  <div className="text-left">
+                    <div className="text-gray-600">Dommages & intérêts</div>
+                    <div className="font-bold text-green-700 text-lg">{Math.round(results.sommes.dommagesInterets).toLocaleString()} €</div>
+                  </div>
+                </div>
+                <div className="border-t border-green-300 pt-3">
+                  <div className="text-sm text-green-800 mb-1">Total récupérable</div>
+                  <div className="text-4xl font-bold text-green-900">
+                    {Math.round(results.sommes.total).toLocaleString()} €
+                  </div>
+                  <p className="text-xs text-green-700 mt-2">
+                    Estimation basée sur vos déclarations (montant indicatif)
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Recommandations personnalisées */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-              🎯 Vos recommandations personnalisées
+          {/* Détails du score */}
+          <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              Détail de l'analyse
             </h2>
 
             <div className="space-y-4">
-              {recommendations.map((rec, index) => (
-                <div
-                  key={index}
-                  className={`p-6 rounded-xl border-2 ${
-                    rec.priority === 'high'
-                      ? 'bg-red-50 border-red-200'
-                      : 'bg-blue-50 border-blue-200'
-                  }`}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="text-4xl">{rec.icon}</div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-                        {rec.title}
-                        {rec.priority === 'high' && (
-                          <span className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full">
-                            URGENT
-                          </span>
-                        )}
-                      </h3>
-                      <p className="text-gray-700">{rec.description}</p>
-                    </div>
-                  </div>
+              {/* Preuves */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold text-gray-900">📄 Preuves documentaires</span>
+                  <span className="font-bold text-green-600">{results.details.preuves}/35</span>
                 </div>
-              ))}
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div 
+                    className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all"
+                    style={{ width: `${(results.details.preuves / 35) * 100}%` }}
+                  />
+                </div>
+                <p className="text-sm text-gray-600 mt-1">
+                  {results.details.preuves >= 28 ? 'Excellentes preuves' :
+                   results.details.preuves >= 21 ? 'Preuves solides' :
+                   results.details.preuves >= 14 ? 'Preuves suffisantes' :
+                   'Manque de preuves'}
+                </p>
+              </div>
+
+              {/* Montant et ancienneté */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold text-gray-900">💼 Montant et ancienneté</span>
+                  <span className="font-bold text-blue-600">{results.details.montantAnciennete}/25</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div 
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all"
+                    style={{ width: `${(results.details.montantAnciennete / 25) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Gravité */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold text-gray-900">⚠️ Gravité du manquement</span>
+                  <span className="font-bold text-red-600">{results.details.gravite}/25</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div 
+                    className="bg-gradient-to-r from-red-500 to-red-600 h-3 rounded-full transition-all"
+                    style={{ width: `${(results.details.gravite / 25) * 100}%` }}
+                  />
+                </div>
+                <p className="text-sm text-gray-600 mt-1">
+                  {results.details.gravite >= 20 ? 'Manquement très grave' :
+                   results.details.gravite >= 10 ? 'Manquement grave' :
+                   'Retard léger'}
+                </p>
+              </div>
+
+              {/* Contexte */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold text-gray-900">🎯 Contexte favorable</span>
+                  <span className="font-bold text-purple-600">{results.details.contexte}/15</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div 
+                    className="bg-gradient-to-r from-purple-500 to-purple-600 h-3 rounded-full transition-all"
+                    style={{ width: `${(results.details.contexte / 15) * 100}%` }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* CTA Premium - BOUTON ROUGE ULTRA-VISIBLE */}
-          <div className="bg-gradient-to-br from-indigo-900 to-blue-900 rounded-2xl shadow-2xl p-8 text-white">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold mb-4">
-                📄 Obtenez votre dossier juridique complet
-              </h2>
-              <p className="text-blue-100 text-lg">
-                Un dossier de 30 pages pour maximiser vos chances de succès
-              </p>
+          {/* Recommandations */}
+          <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              📋 Recommandations personnalisées
+            </h2>
+
+            <div className="space-y-4">
+              {/* Urgence */}
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <h3 className="font-bold text-red-900 mb-2">
+                  ⏰ Action immédiate requise !
+                </h3>
+                <p className="text-sm text-red-800">
+                  Le non-paiement du salaire est une faute grave de l'employeur. Vous êtes en droit de :
+                </p>
+                <ul className="text-sm text-red-800 mt-2 space-y-1">
+                  <li>• Réclamer immédiatement votre salaire par lettre recommandée avec AR</li>
+                  <li>• Cesser le travail si le retard dépasse 15 jours (prise d'acte)</li>
+                  <li>• Saisir le conseil de prud'hommes en référé (procédure d'urgence)</li>
+                </ul>
+              </div>
+
+              {/* Preuves manquantes */}
+              {results.details.preuves < 25 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <h3 className="font-bold text-yellow-900 mb-2">
+                    ⚠️ Renforcez votre dossier
+                  </h3>
+                  <ul className="space-y-1 text-sm text-yellow-800">
+                    {!formData.preuvesContrat && <li>• Récupérez votre contrat de travail</li>}
+                    {!formData.preuvesBulletins && <li>• Obtenez vos bulletins de salaire</li>}
+                    {!formData.preuvesRelevesBancaires && <li>• Imprimez vos relevés bancaires (absence de virement)</li>}
+                    {!formData.preuvesMiseEnDemeure && <li>• Envoyez une mise en demeure par LRAR</li>}
+                  </ul>
+                </div>
+              )}
+
+              {/* Prescription */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-bold text-blue-900 mb-2">
+                  📅 Délai de prescription : 3 ANS
+                </h3>
+                <p className="text-sm text-blue-800">
+                  Vous avez 3 ans à compter de la date d'exigibilité du salaire pour agir.
+                  Ne tardez pas, chaque jour compte !
+                </p>
+              </div>
+
+              {/* Conseil juridique */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h3 className="font-bold text-green-900 mb-2">
+                  💡 Démarches recommandées
+                </h3>
+                <ol className="text-sm text-green-800 space-y-2">
+                  <li><strong>1. Mise en demeure</strong> : Envoyez une lettre LRAR réclamant le paiement sous 8 jours</li>
+                  <li><strong>2. Référé prud'homal</strong> : Saisissez le juge en urgence (2-3 semaines)</li>
+                  <li><strong>3. Prise d'acte</strong> : Si retard &gt; 15 jours, vous pouvez rompre le contrat aux torts de l'employeur</li>
+                  <li><strong>4. Contactez un avocat</strong> : Le non-paiement justifie souvent une aide juridictionnelle</li>
+                </ol>
+              </div>
             </div>
+          </div>
 
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
-                <div className="text-3xl mb-3">⚖️</div>
-                <h3 className="font-bold text-lg mb-2">Arguments juridiques</h3>
-                <p className="text-blue-100 text-sm">
-                  Articles de loi et jurisprudence pertinents
-                </p>
-              </div>
-
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
-                <div className="text-3xl mb-3">📝</div>
-                <h3 className="font-bold text-lg mb-2">Modèles de courriers</h3>
-                <p className="text-blue-100 text-sm">
-                  Mise en demeure, requête prud'homale
-                </p>
-              </div>
-
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
-                <div className="text-3xl mb-3">🎯</div>
-                <h3 className="font-bold text-lg mb-2">Stratégie personnalisée</h3>
-                <p className="text-blue-100 text-sm">
-                  Plan d'action adapté à votre cas
-                </p>
-              </div>
-            </div>
-
-            {/* BOUTON ROUGE ULTRA-VISIBLE - CORRIGÉ DÈS LE DÉPART */}
-            <Link
-              href="/paiement"
-              className="block w-full px-8 py-5 bg-red-600 hover:bg-red-700 text-white text-center rounded-xl font-bold border-4 border-red-800 shadow-2xl hover:shadow-red-500/50 transition-all duration-300 hover:scale-105"
-              style={{ fontSize: '20px' }}
-            >
-              ✓ VOIR MES RÉSULTATS
-            </Link>
-
-            <p className="text-center text-blue-100 mt-6 text-sm">
-              💳 <strong>120€</strong> tarif standard • <strong>60€</strong> pour les membres d'organisations syndicales
+          {/* CTA Premium */}
+          <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl shadow-2xl p-8 text-white text-center">
+            <h2 className="text-2xl font-bold mb-4">
+              🚀 Obtenez votre dossier juridique complet
+            </h2>
+            <p className="text-green-100 mb-6">
+              Modèle de mise en demeure, requête prud'homale, calculs détaillés
+              et stratégie personnalisée pour récupérer vos salaires
             </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ============================================================================
-  // RENDU PRINCIPAL - FORMULAIRE PAR ÉTAPES
-  // ============================================================================
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-4xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                💰 Diagnostic Salaire Impayé
-              </h1>
-              <p className="text-gray-600 mt-2">Évaluez vos chances de récupération</p>
-            </div>
-            <Link 
-              href="/diagnostic"
-              className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all"
-            >
-              ← Retour
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Barre de progression */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-gray-600">
-              Étape {currentStep} sur 5
-            </span>
-            <span className="text-sm text-gray-500">
-              {Math.round((currentStep / 5) * 100)}% complété
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-            <div
-              className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${(currentStep / 5) * 100}%` }}
-            />
-          </div>
-          <div className="flex justify-between mt-3 text-xs text-gray-500">
-            <span className={currentStep >= 1 ? 'text-blue-600 font-semibold' : ''}>Infos</span>
-            <span className={currentStep >= 2 ? 'text-blue-600 font-semibold' : ''}>Détails</span>
-            <span className={currentStep >= 3 ? 'text-blue-600 font-semibold' : ''}>Contexte</span>
-            <span className={currentStep >= 4 ? 'text-blue-600 font-semibold' : ''}>Preuves</span>
-            <span className={currentStep >= 5 ? 'text-blue-600 font-semibold' : ''}>Suite</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Formulaire */}
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          {/* ÉTAPE 1 : Informations générales */}
-          {currentStep === 1 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                  📋 Informations générales
-                </h2>
-                <p className="text-gray-600">
-                  Commençons par les informations de base sur votre situation
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Quel est votre type de contrat ?
-                </label>
-                <div className="space-y-2">
-                  {[
-                    'CDI (Contrat à Durée Indéterminée)',
-                    'CDD (Contrat à Durée Déterminée)',
-                    'Contrat d\'intérim',
-                    'Contrat d\'apprentissage ou professionnalisation',
-                    'Autre',
-                  ].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all"
-                    >
-                      <input
-                        type="radio"
-                        name="typeContrat"
-                        value={option}
-                        checked={formData.typeContrat === option}
-                        onChange={(e) => handleInputChange('typeContrat', e.target.value)}
-                        className="w-5 h-5 text-blue-600"
-                      />
-                      <span className="ml-3 text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Quelle est votre ancienneté dans l'entreprise ?
-                </label>
-                <div className="space-y-2">
-                  {[
-                    'Moins de 6 mois',
-                    'Entre 6 mois et 1 an',
-                    'Entre 1 et 2 ans',
-                    'Entre 2 et 5 ans',
-                    'Plus de 5 ans',
-                  ].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all"
-                    >
-                      <input
-                        type="radio"
-                        name="anciennete"
-                        value={option}
-                        checked={formData.anciennete === option}
-                        onChange={(e) => handleInputChange('anciennete', e.target.value)}
-                        className="w-5 h-5 text-blue-600"
-                      />
-                      <span className="ml-3 text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Quel est votre salaire mensuel brut habituel ?
-                </label>
-                <input
-                  type="number"
-                  value={formData.salaireBrutMensuel}
-                  onChange={(e) => handleInputChange('salaireBrutMensuel', e.target.value)}
-                  placeholder="Ex: 2500"
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-                />
-                <p className="mt-2 text-sm text-gray-500">
-                  💡 Indiquez le montant en euros, avant prélèvements
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Quel a été votre dernier jour de travail effectif ?
-                </label>
-                <input
-                  type="date"
-                  value={formData.dernierJourTravaille}
-                  onChange={(e) => handleInputChange('dernierJourTravaille', e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* ÉTAPE 2 : Détails du non-paiement */}
-          {currentStep === 2 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                  💸 Détails du non-paiement
-                </h2>
-                <p className="text-gray-600">
-                  Précisez les éléments de rémunération qui ne vous ont pas été versés
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Sur quelle période vos salaires sont-ils impayés ?
-                </label>
-                <input
-                  type="text"
-                  value={formData.periodeImpayee}
-                  onChange={(e) => handleInputChange('periodeImpayee', e.target.value)}
-                  placeholder="Ex: Janvier à Mars 2024"
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Combien de mois de salaire sont impayés ?
-                </label>
-                <input
-                  type="number"
-                  value={formData.nombreMoisImpayes}
-                  onChange={(e) => handleInputChange('nombreMoisImpayes', e.target.value)}
-                  placeholder="Ex: 2"
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Quels éléments de rémunération sont impayés ? (plusieurs choix possibles)
-                </label>
-                <div className="space-y-2">
-                  {[
-                    'Salaire de base',
-                    'Heures supplémentaires',
-                    'Primes (13ème mois, objectifs, etc.)',
-                    'Commissions',
-                    'Indemnités de congés payés',
-                    'Remboursement de frais professionnels',
-                  ].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.elementsImpayes.includes(option)}
-                        onChange={() => handleCheckboxChange('elementsImpayes', option)}
-                        className="w-5 h-5 text-blue-600 rounded"
-                      />
-                      <span className="ml-3 text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Quel est le montant total qui vous est dû ?
-                </label>
-                <input
-                  type="number"
-                  value={formData.montantTotalDu}
-                  onChange={(e) => handleInputChange('montantTotalDu', e.target.value)}
-                  placeholder="Ex: 5000"
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-                />
-                <p className="mt-2 text-sm text-gray-500">
-                  💡 Montant brut total de tous les éléments impayés
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  À quelle date le premier salaire aurait-il dû être payé ?
-                </label>
-                <input
-                  type="date"
-                  value={formData.datePaiementPrevu}
-                  onChange={(e) => handleInputChange('datePaiementPrevu', e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* ÉTAPE 3 : Contexte et circonstances */}
-          {currentStep === 3 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                  📝 Contexte et circonstances
-                </h2>
-                <p className="text-gray-600">
-                  Ces informations nous aideront à évaluer la solidité de votre dossier
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Quelle raison l'employeur a-t-il invoquée pour le non-paiement ?
-                </label>
-                <div className="space-y-2">
-                  {[
-                    'Aucune explication fournie',
-                    'Difficultés financières temporaires',
-                    'Contestation sur le montant',
-                    'Problème administratif ou technique',
-                    'Litige sur les heures travaillées',
-                    'Autre raison',
-                  ].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all"
-                    >
-                      <input
-                        type="radio"
-                        name="raisonInvoquee"
-                        value={option}
-                        checked={formData.raisonInvoquee === option}
-                        onChange={(e) => handleInputChange('raisonInvoquee', e.target.value)}
-                        className="w-5 h-5 text-blue-600"
-                      />
-                      <span className="ml-3 text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Quelle est la situation actuelle de l'entreprise ?
-                </label>
-                <div className="space-y-2">
-                  {[
-                    'Activité normale apparente',
-                    'Difficultés financières connues',
-                    'Difficultés financières graves',
-                    'Procédure collective en cours (sauvegarde, redressement)',
-                    'Liquidation judiciaire',
-                    'Entreprise fermée/disparue',
-                  ].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all"
-                    >
-                      <input
-                        type="radio"
-                        name="situationEntreprise"
-                        value={option}
-                        checked={formData.situationEntreprise === option}
-                        onChange={(e) => handleInputChange('situationEntreprise', e.target.value)}
-                        className="w-5 h-5 text-blue-600"
-                      />
-                      <span className="ml-3 text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  D'autres salariés sont-ils également concernés par des impayés ?
-                </label>
-                <div className="space-y-2">
-                  {[
-                    'Oui, plusieurs autres salariés',
-                    'Oui, quelques autres salariés',
-                    'Non, je suis le seul concerné',
-                    'Je ne sais pas',
-                  ].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all"
-                    >
-                      <input
-                        type="radio"
-                        name="autresSalariesConcernes"
-                        value={option}
-                        checked={formData.autresSalariesConcernes === option}
-                        onChange={(e) => handleInputChange('autresSalariesConcernes', e.target.value)}
-                        className="w-5 h-5 text-blue-600"
-                      />
-                      <span className="ml-3 text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Quelles démarches avez-vous déjà effectuées ? (plusieurs choix possibles)
-                </label>
-                <div className="space-y-2">
-                  {[
-                    'Réclamation orale',
-                    'Email ou courrier simple',
-                    'Mise en demeure recommandée',
-                    'Saisine de l\'inspection du travail',
-                    'Prise de contact avec un avocat',
-                    'Aucune démarche pour l\'instant',
-                  ].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.demarchesEffectuees.includes(option)}
-                        onChange={() => handleCheckboxChange('demarchesEffectuees', option)}
-                        className="w-5 h-5 text-blue-600 rounded"
-                      />
-                      <span className="ml-3 text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ÉTAPE 4 : Preuves disponibles */}
-          {currentStep === 4 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                  📑 Preuves disponibles
-                </h2>
-                <p className="text-gray-600">
-                  Les preuves sont essentielles pour établir vos droits et obtenir gain de cause
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Quels documents pouvez-vous fournir ? (plusieurs choix possibles)
-                </label>
-                <div className="space-y-2">
-                  {[
-                    'Contrat de travail signé',
-                    'Bulletins de salaire des mois impayés',
-                    'Courriers recommandés ou emails',
-                    'Relevés bancaires',
-                    'Mise en demeure envoyée',
-                    'Témoignages de collègues',
-                  ].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.preuvesDisponibles.includes(option)}
-                        onChange={() => handleCheckboxChange('preuvesDisponibles', option)}
-                        className="w-5 h-5 text-blue-600 rounded"
-                      />
-                      <span className="ml-3 text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Comment évalueriez-vous la qualité de vos preuves ?
-                </label>
-                <div className="space-y-2">
-                  {[
-                    'Excellente - Documents originaux complets',
-                    'Bonne - La plupart des documents',
-                    'Moyenne - Quelques documents',
-                    'Faible - Peu de documents',
-                  ].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all"
-                    >
-                      <input
-                        type="radio"
-                        name="qualitePreuves"
-                        value={option}
-                        checked={formData.qualitePreuves === option}
-                        onChange={(e) => handleInputChange('qualitePreuves', e.target.value)}
-                        className="w-5 h-5 text-blue-600"
-                      />
-                      <span className="ml-3 text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-6">
-                <h3 className="font-bold text-amber-900 mb-2 flex items-center gap-2">
-                  💡 Conseil important
-                </h3>
-                <p className="text-amber-800 text-sm leading-relaxed">
-                  Les bulletins de salaire et le contrat de travail sont les preuves les plus importantes. 
-                  Si vous ne les avez pas, demandez-les par courrier recommandé avec accusé de réception. 
-                  L'employeur a l'obligation de vous les fournir.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* ÉTAPE 5 : Réclamations et suite */}
-          {currentStep === 5 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                  🎯 Réclamations et suite envisagée
-                </h2>
-                <p className="text-gray-600">
-                  Dernières informations pour compléter votre diagnostic
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Avez-vous effectué des réclamations écrites à votre employeur ?
-                </label>
-                <div className="space-y-2">
-                  {[
-                    'Oui, plusieurs fois par courrier recommandé',
-                    'Oui, par email ou courrier simple',
-                    'Non, seulement des réclamations orales',
-                    'Non, aucune réclamation formelle',
-                  ].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all"
-                    >
-                      <input
-                        type="radio"
-                        name="reclamationsEcrites"
-                        value={option}
-                        checked={formData.reclamationsEcrites === option}
-                        onChange={(e) => handleInputChange('reclamationsEcrites', e.target.value)}
-                        className="w-5 h-5 text-blue-600"
-                      />
-                      <span className="ml-3 text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Quelle a été la réponse de l'employeur à vos réclamations ?
-                </label>
-                <div className="space-y-2">
-                  {[
-                    'Promesse de régularisation jamais tenue',
-                    'Contestation du montant dû',
-                    'Absence totale de réponse',
-                    'Reconnaissance du dû mais incapacité de payer',
-                    'Autre',
-                  ].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all"
-                    >
-                      <input
-                        type="radio"
-                        name="reponseEmployeur"
-                        value={option}
-                        checked={formData.reponseEmployeur === option}
-                        onChange={(e) => handleInputChange('reponseEmployeur', e.target.value)}
-                        className="w-5 h-5 text-blue-600"
-                      />
-                      <span className="ml-3 text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Votre contrat de travail est-il toujours en cours ?
-                </label>
-                <div className="space-y-2">
-                  {[
-                    'Oui, je suis toujours en poste',
-                    'Non, j\'ai démissionné',
-                    'Non, j\'ai été licencié',
-                    'Non, le contrat est arrivé à terme (CDD)',
-                    'Autre situation',
-                  ].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all"
-                    >
-                      <input
-                        type="radio"
-                        name="ruptureContrat"
-                        value={option}
-                        checked={formData.ruptureContrat === option}
-                        onChange={(e) => handleInputChange('ruptureContrat', e.target.value)}
-                        className="w-5 h-5 text-blue-600"
-                      />
-                      <span className="ml-3 text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Envisagez-vous de saisir le conseil de prud'hommes ?
-                </label>
-                <div className="space-y-2">
-                  {[
-                    'Oui, c\'est ma priorité',
-                    'Oui, si nécessaire',
-                    'J\'hésite encore',
-                    'Non, je préfère négocier',
-                    'Je ne sais pas',
-                  ].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all"
-                    >
-                      <input
-                        type="radio"
-                        name="procedurePrudhomale"
-                        value={option}
-                        checked={formData.procedurePrudhomale === option}
-                        onChange={(e) => handleInputChange('procedurePrudhomale', e.target.value)}
-                        className="w-5 h-5 text-blue-600"
-                      />
-                      <span className="ml-3 text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6">
-                <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
-                  ⚖️ Bon à savoir
-                </h3>
-                <p className="text-blue-800 text-sm leading-relaxed mb-2">
-                  Le délai de prescription pour réclamer des salaires impayés est de 3 ans à compter 
-                  du jour où le salaire aurait dû être versé. Il est important d'agir rapidement.
-                </p>
-                <p className="text-blue-800 text-sm leading-relaxed">
-                  La saisine du conseil de prud'hommes est gratuite et peut se faire sans avocat, 
-                  bien qu'un avocat augmente significativement vos chances de succès.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Boutons de navigation */}
-          <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
-            {currentStep > 1 && (
-              <button
-                onClick={prevStep}
-                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all"
-              >
-                ← Étape précédente
-              </button>
-            )}
-            {currentStep === 1 && <div />}
             
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <div className="bg-white/20 rounded-lg p-4">
+                <div className="text-3xl font-bold mb-1">120€</div>
+                <div className="text-sm text-green-100">Grand public</div>
+              </div>
+              <div className="bg-white/20 rounded-lg p-4">
+                <div className="text-3xl font-bold mb-1">60€</div>
+                <div className="text-sm text-green-100">Membres syndicats</div>
+              </div>
+            </div>
+
+            <button className="bg-white text-green-600 font-bold py-4 px-8 rounded-lg hover:shadow-xl transition-all">
+              🎯 Commander mon dossier
+            </button>
+          </div>
+
+          {/* Boutons d'action */}
+          <div className="mt-8 flex flex-wrap gap-4 justify-center">
             <button
-              onClick={nextStep}
-              className="ml-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+              onClick={() => window.print()}
+              className="bg-white text-gray-700 font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all"
             >
-              {currentStep === 5 ? 'Voir mon diagnostic →' : 'Étape suivante →'}
+              🖨️ Imprimer les résultats
+            </button>
+            <Link href="/contact">
+              <button className="bg-white text-gray-700 font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                💬 Contacter un expert
+              </button>
+            </Link>
+            <button
+              onClick={() => {
+                setShowResults(false)
+                setCurrentStep(1)
+              }}
+              className="bg-white text-gray-700 font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all"
+            >
+              🔄 Refaire le diagnostic
             </button>
           </div>
         </div>
       </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            <Link href="/" className="flex items-center space-x-2">
+              <span className="text-2xl font-bold">
+                <span className="text-blue-600">JUSTI</span>
+                <span className="text-gray-900">JOB</span>
+              </span>
+            </Link>
+            <Link href="/diagnostic">
+              <button className="text-gray-600 hover:text-blue-600 font-medium flex items-center gap-2">
+                <span>←</span>
+                <span>Retour</span>
+              </button>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* Progress Bar */}
+      <div className="bg-white border-b">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between mb-3">
+            {[1, 2, 3, 4, 5].map((step) => (
+              <div
+                key={step}
+                className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold
+                  ${step === currentStep ? 'bg-green-600 text-white' :
+                    step < currentStep ? 'bg-green-600 text-white' :
+                    'bg-gray-200 text-gray-600'}`}
+              >
+                {step}
+              </div>
+            ))}
+          </div>
+          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-green-600 to-emerald-600 transition-all duration-500"
+              style={{ width: `${(currentStep / totalSteps) * 100}%` }}
+            />
+          </div>
+          <div className="mt-2 text-sm text-gray-600 text-center">
+            Étape {currentStep} sur {totalSteps}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          {/* Titre de l'étape */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+              <span className="text-3xl">
+                {currentStep === 1 ? '📋' :
+                 currentStep === 2 ? '💰' :
+                 currentStep === 3 ? '🏢' :
+                 currentStep === 4 ? '📄' :
+                 '✅'}
+              </span>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              {currentStep === 1 && 'Informations générales'}
+              {currentStep === 2 && 'Détails du non-paiement'}
+              {currentStep === 3 && 'Contexte et circonstances'}
+              {currentStep === 4 && 'Preuves disponibles'}
+              {currentStep === 5 && 'Réclamations effectuées'}
+            </h2>
+            <p className="text-gray-600">
+              {currentStep === 1 && 'Commençons par votre situation professionnelle'}
+              {currentStep === 2 && 'Précisez les salaires non payés'}
+              {currentStep === 3 && 'Comprenons la situation de l\'entreprise'}
+              {currentStep === 4 && 'Quels documents pouvez-vous fournir ?'}
+              {currentStep === 5 && 'Avez-vous déjà agi ?'}
+            </p>
+          </div>
+
+          {/* Questions - Étape 1 */}
+          {currentStep === 1 && (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type de contrat *
+                </label>
+                <select
+                  value={formData.typeContrat}
+                  onChange={(e) => handleChange('typeContrat', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  required
+                >
+                  <option value="">Sélectionnez</option>
+                  <option value="CDI">CDI</option>
+                  <option value="CDD">CDD</option>
+                  <option value="Interim">Intérim</option>
+                  <option value="Apprentissage">Apprentissage</option>
+                  <option value="Stage">Stage</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Ancienneté dans l'entreprise (en années) *
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={formData.anciennete}
+                  onChange={(e) => handleChange('anciennete', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  placeholder="Ex: 1.5"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Salaire mensuel brut habituel (€) *
+                </label>
+                <input
+                  type="number"
+                  step="100"
+                  min="0"
+                  value={formData.salaireBrut}
+                  onChange={(e) => handleChange('salaireBrut', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  placeholder="Ex: 2000"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Salaire de base avant le non-paiement
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Êtes-vous toujours salarié de cette entreprise ? *
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="toujoursSalarie"
+                      value="oui"
+                      checked={formData.toujoursSalarie === 'oui'}
+                      onChange={(e) => handleChange('toujoursSalarie', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Oui, je travaille toujours</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="toujoursSalarie"
+                      value="non"
+                      checked={formData.toujoursSalarie === 'non'}
+                      onChange={(e) => handleChange('toujoursSalarie', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Non, j'ai quitté l'entreprise</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {formData.toujoursSalarie === 'non' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Dernier jour travaillé
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.dernierJourTravaille}
+                    onChange={(e) => handleChange('dernierJourTravaille', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Questions - Étape 2 */}
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Combien de mois de salaire n'ont pas été payés ? *
+                </label>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  value={formData.moisImpaye}
+                  onChange={(e) => handleChange('moisImpaye', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  placeholder="Ex: 2"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quels éléments n'ont pas été payés ? *
+                </label>
+                <p className="text-sm text-gray-500 mb-3">
+                  Cochez tous les éléments concernés
+                </p>
+                <div className="space-y-2">
+                  {[
+                    { id: 'salaire_base', label: 'Salaire de base' },
+                    { id: 'primes', label: 'Primes' },
+                    { id: 'heures_sup', label: 'Heures supplémentaires' },
+                    { id: 'indemnites', label: 'Indemnités diverses' },
+                    { id: 'conges', label: 'Indemnité de congés payés' },
+                    { id: 'treizieme', label: '13ème mois' }
+                  ].map((element) => (
+                    <label
+                      key={element.id}
+                      className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.elementsImpaye?.includes(element.id)}
+                        onChange={() => toggleElement(element.id)}
+                      />
+                      <span className="font-medium text-gray-900">{element.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Montant total non payé (€) *
+                </label>
+                <input
+                  type="number"
+                  step="100"
+                  min="0"
+                  value={formData.montantTotal}
+                  onChange={(e) => handleChange('montantTotal', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  placeholder="Ex: 4000"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Total de toutes les sommes dues (brut)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date à laquelle le salaire aurait dû être payé *
+                </label>
+                <input
+                  type="date"
+                  value={formData.datePaiementPrevue}
+                  onChange={(e) => handleChange('datePaiementPrevue', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Date habituelle de versement du salaire
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Délai de retard *
+                </label>
+                <select
+                  value={formData.delaiRetard}
+                  onChange={(e) => handleChange('delaiRetard', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  required
+                >
+                  <option value="">Sélectionnez</option>
+                  <option value="moins_1_mois">Moins d'1 mois</option>
+                  <option value="1_3_mois">Entre 1 et 3 mois</option>
+                  <option value="plus_3_mois">Plus de 3 mois</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Questions - Étape 3 */}
+          {currentStep === 3 && (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quelle raison a invoqué votre employeur ?
+                </label>
+                <textarea
+                  value={formData.raisonEmployeur}
+                  onChange={(e) => handleChange('raisonEmployeur', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  rows="3"
+                  placeholder="Ex: Difficultés financières, problème de trésorerie..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Situation de l'entreprise *
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="situationEntreprise"
+                      value="normale"
+                      checked={formData.situationEntreprise === 'normale'}
+                      onChange={(e) => handleChange('situationEntreprise', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Entreprise en activité normale</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="situationEntreprise"
+                      value="difficultes"
+                      checked={formData.situationEntreprise === 'difficultes'}
+                      onChange={(e) => handleChange('situationEntreprise', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Difficultés financières</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="situationEntreprise"
+                      value="procedure"
+                      checked={formData.situationEntreprise === 'procedure'}
+                      onChange={(e) => handleChange('situationEntreprise', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Procédure collective (redressement, liquidation)</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="situationEntreprise"
+                      value="ne_sais_pas"
+                      checked={formData.situationEntreprise === 'ne_sais_pas'}
+                      onChange={(e) => handleChange('situationEntreprise', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Je ne sais pas</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  D'autres salariés sont-ils dans la même situation ? *
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="autresSalariesConcernes"
+                      value="oui"
+                      checked={formData.autresSalariesConcernes === 'oui'}
+                      onChange={(e) => handleChange('autresSalariesConcernes', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Oui, plusieurs collègues</p>
+                      <p className="text-sm text-gray-600">💡 Action collective possible</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="autresSalariesConcernes"
+                      value="non"
+                      checked={formData.autresSalariesConcernes === 'non'}
+                      onChange={(e) => handleChange('autresSalariesConcernes', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Non, je suis le seul</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="autresSalariesConcernes"
+                      value="ne_sais_pas"
+                      checked={formData.autresSalariesConcernes === 'ne_sais_pas'}
+                      onChange={(e) => handleChange('autresSalariesConcernes', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Je ne sais pas</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Questions - Étape 4 */}
+          {currentStep === 4 && (
+            <div className="space-y-6">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-green-900">
+                  💡 <strong>Important :</strong> Les preuves sont essentielles pour récupérer votre salaire.
+                  Cochez tous les documents que vous possédez.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100">
+                  <input
+                    type="checkbox"
+                    checked={formData.preuvesContrat}
+                    onChange={(e) => handleChange('preuvesContrat', e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="font-medium text-gray-900">Contrat de travail</p>
+                    <p className="text-sm text-gray-600">Original ou copie signée</p>
+                    <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                      ⭐ Preuve essentielle
+                    </span>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100">
+                  <input
+                    type="checkbox"
+                    checked={formData.preuvesBulletins}
+                    onChange={(e) => handleChange('preuvesBulletins', e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="font-medium text-gray-900">Bulletins de salaire</p>
+                    <p className="text-sm text-gray-600">Derniers mois avant le non-paiement</p>
+                    <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                      ⭐ Preuve essentielle
+                    </span>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100">
+                  <input
+                    type="checkbox"
+                    checked={formData.preuvesEmails}
+                    onChange={(e) => handleChange('preuvesEmails', e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="font-medium text-gray-900">Emails et courriers</p>
+                    <p className="text-sm text-gray-600">Échanges avec l'employeur sur le non-paiement</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100">
+                  <input
+                    type="checkbox"
+                    checked={formData.preuvesRelevesBancaires}
+                    onChange={(e) => handleChange('preuvesRelevesBancaires', e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="font-medium text-gray-900">Relevés bancaires</p>
+                    <p className="text-sm text-gray-600">Prouvant l'absence de virement</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100">
+                  <input
+                    type="checkbox"
+                    checked={formData.preuvesMiseEnDemeure}
+                    onChange={(e) => handleChange('preuvesMiseEnDemeure', e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="font-medium text-gray-900">Mise en demeure</p>
+                    <p className="text-sm text-gray-600">Lettre LRAR réclamant le paiement</p>
+                    <span className="inline-block mt-1 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                      💪 Renforce beaucoup le dossier
+                    </span>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100">
+                  <input
+                    type="checkbox"
+                    checked={formData.preuvesTemoins}
+                    onChange={(e) => handleChange('preuvesTemoins', e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="font-medium text-gray-900">Témoignages de collègues</p>
+                    <p className="text-sm text-gray-600">Attestations écrites</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100">
+                  <input
+                    type="checkbox"
+                    checked={formData.preuvesJustificatifsPresence}
+                    onChange={(e) => handleChange('preuvesJustificatifsPresence', e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="font-medium text-gray-900">Justificatifs de présence</p>
+                    <p className="text-sm text-gray-600">Badgeuse, emails horodatés, plannings</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* Questions - Étape 5 */}
+          {currentStep === 5 && (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Avez-vous déjà réclamé votre salaire à l'employeur ? *
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="reclamationFaite"
+                      value="oui_ecrit"
+                      checked={formData.reclamationFaite === 'oui_ecrit'}
+                      onChange={(e) => handleChange('reclamationFaite', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Oui, par écrit (email, courrier LRAR)</p>
+                      <span className="inline-block mt-1 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                        ✓ Très favorable
+                      </span>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="reclamationFaite"
+                      value="oui_oral"
+                      checked={formData.reclamationFaite === 'oui_oral'}
+                      onChange={(e) => handleChange('reclamationFaite', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Oui, mais seulement oralement</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="reclamationFaite"
+                      value="non"
+                      checked={formData.reclamationFaite === 'non'}
+                      onChange={(e) => handleChange('reclamationFaite', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Non, pas encore</p>
+                      <p className="text-sm text-orange-600">⚠️ À faire rapidement par LRAR</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {formData.reclamationFaite !== 'non' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Quelle a été la réponse de l'employeur ?
+                  </label>
+                  <textarea
+                    value={formData.reponseEmployeur}
+                    onChange={(e) => handleChange('reponseEmployeur', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    rows="3"
+                    placeholder="Décrivez la réponse de votre employeur..."
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Avez-vous rompu votre contrat de travail ? *
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="ruptureContrat"
+                      value="non"
+                      checked={formData.ruptureContrat === 'non'}
+                      onChange={(e) => handleChange('ruptureContrat', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Non, je travaille toujours</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="ruptureContrat"
+                      value="prise_acte"
+                      checked={formData.ruptureContrat === 'prise_acte'}
+                      onChange={(e) => handleChange('ruptureContrat', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Oui, j'ai pris acte de la rupture</p>
+                      <p className="text-sm text-gray-600">Rupture aux torts de l'employeur</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="ruptureContrat"
+                      value="demission"
+                      checked={formData.ruptureContrat === 'demission'}
+                      onChange={(e) => handleChange('ruptureContrat', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Oui, j'ai démissionné</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="ruptureContrat"
+                      value="licencie"
+                      checked={formData.ruptureContrat === 'licencie'}
+                      onChange={(e) => handleChange('ruptureContrat', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Oui, j'ai été licencié</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Envisagez-vous de saisir le conseil de prud'hommes ? *
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="conseilPrudhommes"
+                      value="oui"
+                      checked={formData.conseilPrudhommes === 'oui'}
+                      onChange={(e) => handleChange('conseilPrudhommes', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Oui, je vais saisir les prud'hommes</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="conseilPrudhommes"
+                      value="refere"
+                      checked={formData.conseilPrudhommes === 'refere'}
+                      onChange={(e) => handleChange('conseilPrudhommes', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Oui, en référé (procédure d'urgence)</p>
+                      <p className="text-sm text-green-600">✓ Recommandé pour salaire impayé</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="conseilPrudhommes"
+                      value="ne_sais_pas"
+                      checked={formData.conseilPrudhommes === 'ne_sais_pas'}
+                      onChange={(e) => handleChange('conseilPrudhommes', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Je ne sais pas encore</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation */}
+          <div className="mt-8 pt-6 border-t bg-white rounded-lg shadow-lg p-6">
+            <div className="flex justify-between items-center gap-4">
+              {currentStep > 1 && (
+                <button
+                  onClick={prevStep}
+                  className="px-6 py-3 text-gray-600 hover:text-gray-900 font-medium flex items-center gap-2"
+                >
+                  <span>←</span>
+                  <span>Retour</span>
+                </button>
+              )}
+
+              {currentStep < totalSteps ? (
+                <button
+                  onClick={nextStep}
+                  className="ml-auto px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg font-semibold hover:shadow-xl transition-all flex items-center gap-2"
+                >
+                  <span>Suivant</span>
+                  <span>→</span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleSubmit}
+                  className="w-full px-8 py-5 bg-red-600 text-white rounded-xl font-bold text-xl shadow-2xl hover:bg-red-700 hover:scale-105 transition-all flex items-center justify-center gap-3 border-4 border-red-800"
+                  style={{ fontSize: '20px' }}
+                >
+                  <span className="text-2xl">✓</span>
+                  <span>VOIR MES RÉSULTATS</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Info sécurité */}
+          <div className="mt-6 flex flex-wrap justify-center gap-6 text-sm text-gray-600">
+            <div className="flex items-center gap-2">
+              <span>🔒</span>
+              <span>Données sécurisées</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>✅</span>
+              <span>100% gratuit</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>⚡</span>
+              <span>Résultats immédiats</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  );
+  )
 }
