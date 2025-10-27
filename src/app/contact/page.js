@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Mail, Phone, MapPin, Send, MessageSquare, AlertCircle, CheckCircle2, User, Building2, Clock, Shield } from 'lucide-react'
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -74,7 +73,7 @@ export default function ContactPage() {
                 href="/"
                 className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors group"
               >
-                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                <span className="text-xl">←</span>
                 <span className="font-medium">Retour accueil</span>
               </Link>
               
@@ -115,7 +114,7 @@ export default function ContactPage() {
           {/* Header de la page */}
           <div className="text-center mb-12">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-              <MessageSquare className="w-8 h-8 text-white" />
+              <span className="text-3xl">💬</span>
             </div>
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
               Contactez-nous
@@ -139,7 +138,7 @@ export default function ContactPage() {
                   {/* Email */}
                   <div className="flex items-start gap-4">
                     <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Mail className="w-5 h-5 text-blue-600" />
+                      <span className="text-xl">📧</span>
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900 mb-1">Email</p>
@@ -155,7 +154,7 @@ export default function ContactPage() {
                   {/* Téléphone */}
                   <div className="flex items-start gap-4">
                     <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <Phone className="w-5 h-5 text-green-600" />
+                      <span className="text-xl">📞</span>
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900 mb-1">Téléphone</p>
@@ -172,12 +171,13 @@ export default function ContactPage() {
                   {/* Adresse */}
                   <div className="flex items-start gap-4">
                     <div className="flex-shrink-0 w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <MapPin className="w-5 h-5 text-purple-600" />
+                      <span className="text-xl">📍</span>
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900 mb-1">Adresse</p>
                       <p className="text-gray-600 text-sm">
                         JustiJob SAS<br />
+                        SIREN: 992 255 745<br />
                         Paris, France
                       </p>
                     </div>
@@ -185,12 +185,12 @@ export default function ContactPage() {
 
                   {/* Horaires */}
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-orange-600" />
+                    <div className="flex-shrink-0 w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                      <span className="text-xl">⏰</span>
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900 mb-1">Horaires</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-gray-600 text-sm">
                         Lundi - Vendredi<br />
                         9h00 - 18h00
                       </p>
@@ -199,89 +199,93 @@ export default function ContactPage() {
                 </div>
               </div>
 
-              {/* Support syndical */}
-              <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl shadow-lg p-6 border border-green-200">
-                <div className="flex items-center gap-3 mb-4">
-                  <Building2 className="w-6 h-6 text-green-600" />
-                  <h3 className="font-bold text-gray-900">Vous êtes syndiqué ?</h3>
-                </div>
-                <p className="text-sm text-gray-700 mb-4">
-                  Nos partenaires syndicaux bénéficient d'un tarif préférentiel de <strong>60€</strong> au lieu de 120€.
-                </p>
-                <div className="text-xs text-gray-600">
-                  <p className="font-medium mb-2">Syndicats partenaires :</p>
-                  <p>CGT, CFDT, FO, CFE-CGC, CFTC, UNSA, FSU, Solidaires</p>
+              {/* Badges de confiance */}
+              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl shadow-lg p-6">
+                <h3 className="font-bold text-gray-900 mb-4">
+                  🛡️ Nos engagements
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span className="text-gray-700">Réponse sous 24h ouvrées</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span className="text-gray-700">Conformité RGPD</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span className="text-gray-700">Données sécurisées</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span className="text-gray-700">Accompagnement personnalisé</span>
+                  </div>
                 </div>
               </div>
 
-              {/* RGPD */}
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <div className="flex items-start gap-3">
-                  <Shield className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs text-gray-600">
-                      Vos données sont traitées de manière sécurisée et confidentielle, 
-                      conformément au RGPD. Elles ne seront jamais partagées avec des tiers.
-                    </p>
-                  </div>
+              {/* Partenaires syndicaux */}
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <h3 className="font-bold text-gray-900 mb-4">
+                  🤝 Nos partenaires syndicaux
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  JustiJob collabore avec les principales organisations syndicales françaises
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-semibold">CGT</span>
+                  <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-semibold">CFDT</span>
+                  <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-semibold">FO</span>
+                  <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-semibold">CFE-CGC</span>
+                  <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-semibold">CFTC</span>
+                  <span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs font-semibold">UNSA</span>
                 </div>
               </div>
             </div>
 
-            {/* Colonne droite - Formulaire de contact */}
+            {/* Colonne droite - Formulaire */}
             <div className="lg:col-span-2">
-              <div className="bg-white rounded-2xl shadow-xl p-8">
+              {/* Messages de statut */}
+              {formStatus.submitted && (
+                <div className="mb-6 bg-green-50 border-2 border-green-500 rounded-xl p-4 animate-fade-in">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">✅</span>
+                    <div>
+                      <p className="font-bold text-green-900">Message envoyé avec succès !</p>
+                      <p className="text-sm text-green-700">
+                        Nous avons bien reçu votre message et vous répondrons dans les plus brefs délais.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {formStatus.error && (
+                <div className="mb-6 bg-red-50 border-2 border-red-500 rounded-xl p-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">⚠️</span>
+                    <div>
+                      <p className="font-bold text-red-900">Erreur d'envoi</p>
+                      <p className="text-sm text-red-700">
+                        Une erreur est survenue. Veuillez réessayer ou nous contacter directement par email.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Formulaire */}
+              <div className="bg-white rounded-2xl shadow-lg p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
                   Envoyez-nous un message
                 </h2>
-                <p className="text-gray-600 mb-8">
-                  Remplissez le formulaire ci-dessous et nous vous répondrons dans les plus brefs délais.
+                <p className="text-gray-600 mb-6">
+                  Remplissez le formulaire ci-dessous et nous vous répondrons rapidement
                 </p>
-
-                {/* Message de succès */}
-                {formStatus.submitted && (
-                  <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-green-900">Message envoyé !</p>
-                      <p className="text-sm text-green-700 mt-1">
-                        Nous avons bien reçu votre message et vous répondrons sous 24h.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Message d'erreur */}
-                {formStatus.error && (
-                  <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-red-900">Erreur d'envoi</p>
-                      <p className="text-sm text-red-700 mt-1">
-                        Une erreur s'est produite. Veuillez réessayer ou nous contacter par email.
-                      </p>
-                    </div>
-                  </div>
-                )}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Nom et Prénom */}
                   <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nom *
-                      </label>
-                      <input
-                        type="text"
-                        name="nom"
-                        required
-                        value={formData.nom}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Dupont"
-                      />
-                    </div>
-
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Prénom *
@@ -294,6 +298,20 @@ export default function ContactPage() {
                         onChange={handleChange}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="Jean"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nom *
+                      </label>
+                      <input
+                        type="text"
+                        name="nom"
+                        required
+                        value={formData.nom}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Dupont"
                       />
                     </div>
                   </div>
@@ -425,7 +443,7 @@ export default function ContactPage() {
                       </>
                     ) : (
                       <>
-                        <Send className="w-5 h-5" />
+                        <span className="text-xl">📨</span>
                         Envoyer le message
                       </>
                     )}
@@ -436,7 +454,7 @@ export default function ContactPage() {
               {/* Info délai de réponse */}
               <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                  <Clock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <span className="text-2xl">⏱️</span>
                   <div>
                     <p className="font-semibold text-blue-900 text-sm">Délai de réponse</p>
                     <p className="text-xs text-blue-700 mt-1">
@@ -452,7 +470,7 @@ export default function ContactPage() {
           {/* Section FAQ rapide */}
           <div className="mt-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-2xl p-8 text-white text-center">
             <h2 className="text-2xl font-bold mb-4">
-              Besoin d'une réponse immédiate ?
+              ⚡ Besoin d'une réponse immédiate ?
             </h2>
             <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
               Consultez notre diagnostic gratuit avec l'IA Claude pour obtenir une première évaluation 
@@ -460,7 +478,7 @@ export default function ContactPage() {
             </p>
             <Link href="/diagnostic">
               <button className="bg-white text-blue-600 px-8 py-4 rounded-lg font-bold hover:shadow-xl transform hover:scale-105 transition-all">
-                Lancer le diagnostic gratuit
+                🚀 Lancer le diagnostic gratuit
               </button>
             </Link>
           </div>
@@ -473,7 +491,7 @@ export default function ContactPage() {
         className="fixed bottom-6 left-6 bg-white shadow-lg rounded-full p-4 hover:shadow-xl transition-all z-30 md:hidden"
         aria-label="Retour à l'accueil"
       >
-        <ArrowLeft className="w-6 h-6 text-gray-700" />
+        <span className="text-2xl">←</span>
       </Link>
     </div>
   )
