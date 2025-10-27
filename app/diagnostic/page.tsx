@@ -45,10 +45,13 @@ export default function DiagnosticSelectionPage() {
       title: 'Salaire Impayé',
       subtitle: 'Retard ou non-paiement',
       description: 'Calcul des sommes dues et des pénalités applicables',
-      available: false,
+      available: true,
       color: 'from-green-500 to-green-600',
       features: [
-        'Prochainement disponible'
+        'Calcul salaires dus',
+        'Intérêts légaux',
+        'Dommages & intérêts',
+        'Mise en demeure'
       ]
     },
     {
