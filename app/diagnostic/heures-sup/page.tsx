@@ -747,7 +747,6 @@ export default function DiagnosticHeuresSupplementaires() {
     return recs
   }
 
-
   return (
     <>
       {showResults ? (
