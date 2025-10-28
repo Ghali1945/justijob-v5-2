@@ -728,7 +728,6 @@ export default function DiagnosticHeuresSupplementaires() {
       title: "🧮 CALCUL PRÉCIS DES HEURES",
       description: "Établissez un décompte précis : nb d'heures par semaine × nb de semaines sur la période. Préparez un tableau Excel détaillé semaine par semaine si possible."
       })
-    }
 
     // Repos compensateur
     if (formData.reposCompensateur === 'non') {
