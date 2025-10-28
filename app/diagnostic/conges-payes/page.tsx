@@ -1,1299 +1,1237 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
-// Types pour le formulaire
 interface FormData {
-  // ÉTAPE 1 : Période et situation
-  dateDebut: string
-  dateFin: string
-  situation: string
+  // Étape 1 : Informations générales
+  situationPro: string
   typeContrat: string
-  tempsPartiel: string
-  tauxTempsPartiel: string
-  
-  // ÉTAPE 2 : Congés acquis et pris
-  joursAcquis: string
-  joursPris: string
-  joursRTT: string
-  soldeAfficheBulletin: string
-  methodeCPAcquis: string
-  
-  // ÉTAPE 3 : Salaire de référence
-  salaireBrutMensuel: string
-  primesRegulières: string
-  treizièmeMois: string
-  avantagesNature: string
-  heuresSupHabituelles: string
-  autresElements: string
-  
-  // ÉTAPE 4 : Contexte et preuves
-  refusEmployeur: string
-  detailsRefus: string
-  preuvesDisponibles: string[]
-  detailsPreuves: string
-  indemnitePayee: string
-  montantDejaPercu: string
   anciennete: string
+  salaireBrut: string
+  
+  // Étape 2 : Gestion des congés payés
+  congesAcquis: string
+  congesPris: string
+  periodeAcquisition: string
+  datesSortie: string
+  
+  // Étape 3 : Problématique
+  natureLitige: string[]
+  montantConteste: string
+  refusEmployeur: string
+  preuves: string[]
+  
+  // Étape 4 : Calcul et indemnisation
+  dateDepart: string
+  modeCalcul: string
+  primesIncluses: string
+  
+  // Étape 5 : Réclamation
+  demarchesDeja: string[]
   objectifs: string[]
+  urgence: string
+  detailsSituation: string
 }
 
-interface Results {
-  score: number
-  joursNonPris: number
-  methode1dixieme: number
-  methodeMaintienSalaire: number
-  methodeRetenue: string
-  montantDu: number
-  congesSurConges: number
-  montantTotal: number
-  montantNet: number
-  categorie: string
-  recommandations: string[]
-  textesDeLoi: string[]
-  procedureRecommandee: string[]
-  delaisPrescription: string
-  pointsVigilance: string[]
+interface Scores {
+  preuves: number
+  montant: number
+  droit: number
+  contexte: number
+}
+
+interface Calculs {
+  joursAcquisTotal: number
+  joursPris: number
+  joursRestants: number
+  indemniteCP: number
+  indemniteCompensatrice: number
+  dommagesInterets: number
+  total: number
 }
 
 export default function DiagnosticCongesPayes() {
-  const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
-  const [showResults, setShowResults] = useState(false)
-  const [results, setResults] = useState<Results | null>(null)
-  
   const [formData, setFormData] = useState<FormData>({
-    // ÉTAPE 1
-    dateDebut: '',
-    dateFin: '',
-    situation: '',
+    situationPro: '',
     typeContrat: '',
-    tempsPartiel: 'non',
-    tauxTempsPartiel: '100',
-    
-    // ÉTAPE 2
-    joursAcquis: '',
-    joursPris: '',
-    joursRTT: '0',
-    soldeAfficheBulletin: '',
-    methodeCPAcquis: 'calcul',
-    
-    // ÉTAPE 3
-    salaireBrutMensuel: '',
-    primesRegulières: '0',
-    treizièmeMois: 'non',
-    avantagesNature: '0',
-    heuresSupHabituelles: '0',
-    autresElements: '0',
-    
-    // ÉTAPE 4
-    refusEmployeur: '',
-    detailsRefus: '',
-    preuvesDisponibles: [],
-    detailsPreuves: '',
-    indemnitePayee: '',
-    montantDejaPercu: '0',
     anciennete: '',
-    objectifs: []
+    salaireBrut: '',
+    congesAcquis: '',
+    congesPris: '',
+    periodeAcquisition: '',
+    datesSortie: '',
+    natureLitige: [],
+    montantConteste: '',
+    refusEmployeur: '',
+    preuves: [],
+    dateDepart: '',
+    modeCalcul: '',
+    primesIncluses: '',
+    demarchesDeja: [],
+    objectifs: [],
+    urgence: '',
+    detailsSituation: ''
   })
+  
+  const [scores, setScores] = useState<Scores>({
+    preuves: 0,
+    montant: 0,
+    droit: 0,
+    contexte: 0
+  })
+  
+  const [calculs, setCalculs] = useState<Calculs>({
+    joursAcquisTotal: 0,
+    joursPris: 0,
+    joursRestants: 0,
+    indemniteCP: 0,
+    indemniteCompensatrice: 0,
+    dommagesInterets: 0,
+    total: 0
+  })
+  
+  const [showResults, setShowResults] = useState(false)
+  const [isCalculating, setIsCalculating] = useState(false)
 
-  // Sauvegarde automatique
+  const totalSteps = 5
+
+  // Sauvegarde automatique dans localStorage
   useEffect(() => {
     const saved = localStorage.getItem('diagnostic_conges_payes')
     if (saved) {
-      const data = JSON.parse(saved)
-      setFormData(data.formData || formData)
-      setCurrentStep(data.currentStep || 1)
+      try {
+        const data = JSON.parse(saved)
+        setFormData(data.formData || formData)
+        setCurrentStep(data.currentStep || 1)
+      } catch (e) {
+        console.error('Erreur chargement données:', e)
+      }
     }
   }, [])
 
   useEffect(() => {
-    if (currentStep > 0) {
+    if (!showResults) {
       localStorage.setItem('diagnostic_conges_payes', JSON.stringify({
         formData,
         currentStep,
-        lastUpdate: new Date().toISOString()
+        timestamp: new Date().toISOString()
       }))
     }
-  }, [formData, currentStep])
+  }, [formData, currentStep, showResults])
 
-  const updateFormData = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-  }
-
-  const toggleArrayValue = (field: string, value: string) => {
-    setFormData(prev => {
-      const currentArray = prev[field as keyof FormData] as string[]
-      const newArray = currentArray.includes(value)
-        ? currentArray.filter(item => item !== value)
-        : [...currentArray, value]
-      return { ...prev, [field]: newArray }
-    })
-  }
-
-  // Validation des étapes
-  const validateStep = (step: number): boolean => {
+  // Validation du formulaire par étape
+  const isStepValid = (step: number): boolean => {
     switch(step) {
       case 1:
-        return !!(
-          formData.dateDebut &&
-          formData.dateFin &&
-          formData.situation &&
-          formData.typeContrat &&
-          formData.tauxTempsPartiel
-        )
-      
+        return !!(formData.situationPro && formData.typeContrat && 
+                 formData.anciennete && formData.salaireBrut)
       case 2:
-        if (formData.methodeCPAcquis === 'calcul') {
-          return !!(formData.joursAcquis && formData.joursPris)
-        }
-        return !!(formData.soldeAfficheBulletin)
-      
+        return !!(formData.congesAcquis && formData.congesPris)
       case 3:
-        return !!(formData.salaireBrutMensuel)
-      
+        return formData.natureLitige.length > 0
       case 4:
-        return !!(
-          formData.refusEmployeur &&
-          formData.preuvesDisponibles.length > 0 &&
-          formData.indemnitePayee &&
-          formData.anciennete &&
-          formData.objectifs.length > 0
-        )
-      
+        return !!(formData.modeCalcul)
+      case 5:
+        return formData.objectifs.length > 0
       default:
         return false
     }
   }
 
-  const nextStep = () => {
-    if (validateStep(currentStep)) {
-      if (currentStep < 4) {
-        setCurrentStep(prev => prev + 1)
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-      } else {
-        calculateResults()
-      }
-    } else {
-      alert('Veuillez remplir tous les champs obligatoires')
+  const handleInputChange = (field: keyof FormData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleCheckboxChange = (field: keyof FormData, value: string) => {
+    setFormData(prev => {
+      const currentValues = prev[field] as string[]
+      const newValues = currentValues.includes(value)
+        ? currentValues.filter(v => v !== value)
+        : [...currentValues, value]
+      return { ...prev, [field]: newValues }
+    })
+  }
+
+  const handleNext = () => {
+    if (currentStep < totalSteps && isStepValid(currentStep)) {
+      setCurrentStep(prev => prev + 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
-  const prevStep = () => {
+  const handlePrevious = () => {
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
-  // Fonction de calcul des résultats
-  const calculateResults = () => {
-    // Calcul durée en mois
-    const debut = new Date(formData.dateDebut)
-    const fin = new Date(formData.dateFin)
-    const moisTravailles = (fin.getTime() - debut.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
-    
-    // Jours de CP non pris
-    const joursAcquis = formData.methodeCPAcquis === 'calcul' 
-      ? parseFloat(formData.joursAcquis) 
-      : parseFloat(formData.soldeAfficheBulletin)
-    const joursPris = parseFloat(formData.joursPris || '0')
-    const joursNonPris = joursAcquis - joursPris
-    
-    // Salaire de référence
-    const salaireBrut = parseFloat(formData.salaireBrutMensuel)
-    const primes = parseFloat(formData.primesRegulières || '0')
-    const heuresSup = parseFloat(formData.heuresSupHabituelles || '0')
-    const avantages = parseFloat(formData.avantagesNature || '0')
-    const autres = parseFloat(formData.autresElements || '0')
-    
-    let salaireReference = salaireBrut + primes + heuresSup + avantages + autres
-    
-    // Ajout 13ème mois proratisé
-    if (formData.treizièmeMois === 'oui') {
-      salaireReference += salaireBrut / 12
-    }
-    
-    // Ajustement temps partiel
-    const tauxTP = parseFloat(formData.tauxTempsPartiel) / 100
-    salaireReference = salaireReference * tauxTP
-    
-    // MÉTHODE 1 : 1/10ème (Art. L3141-24)
-    const salairePeriode = salaireReference * moisTravailles
-    const methode1dixieme = (salairePeriode / 10) * (joursNonPris / 25)
-    
-    // MÉTHODE 2 : Maintien de salaire (Art. L3141-22)
-    const salaireJournalier = salaireReference / 21.67 // Jours ouvrés moyens par mois
-    const methodeMaintienSalaire = salaireJournalier * joursNonPris
-    
-    // Méthode la plus favorable
-    const montantDu = Math.max(methode1dixieme, methodeMaintienSalaire)
-    const methodeRetenue = montantDu === methode1dixieme ? 'Méthode du 1/10ème' : 'Méthode du maintien de salaire'
-    
-    // Congés payés sur congés payés (+10%)
-    const congesSurConges = montantDu * 0.10
-    
-    // Montant total avant déduction
-    const montantTotal = montantDu + congesSurConges
-    
-    // Déduction montants déjà perçus
-    const dejaPercu = parseFloat(formData.montantDejaPercu || '0')
-    const montantNet = Math.max(0, montantTotal - dejaPercu)
-    
-    // SCORING (sur 100 points)
-    let score = 0
-    
-    // 1. Calcul précis et documenté (40 points)
-    if (formData.methodeCPAcquis === 'bulletin' && formData.soldeAfficheBulletin) {
-      score += 20 // Solde sur bulletin = preuve forte
-    } else if (formData.joursAcquis) {
-      score += 15 // Calcul manuel
-    }
-    
-    if (formData.preuvesDisponibles.includes('bulletins')) score += 10
-    if (formData.preuvesDisponibles.includes('attestation')) score += 10
-    
-    // 2. Preuves solides (30 points)
-    if (formData.preuvesDisponibles.includes('emails_refus')) score += 10
-    if (formData.preuvesDisponibles.includes('demandes_ecrites')) score += 8
-    if (formData.preuvesDisponibles.includes('temoignages')) score += 5
-    if (formData.preuvesDisponibles.includes('planning')) score += 4
-    if (formData.refusEmployeur === 'oui' && formData.detailsRefus) score += 3
-    
-    // 3. Délai de prescription OK (20 points)
-    const anciennete = parseInt(formData.anciennete)
-    if (anciennete <= 1) {
-      score += 20 // Moins d'1 an = excellent
-    } else if (anciennete <= 2) {
-      score += 15 // 1-2 ans = bon
-    } else if (anciennete <= 3) {
-      score += 10 // 2-3 ans = correct
-    } else {
-      score += 0 // Plus de 3 ans = prescrit
-    }
-    
-    // 4. Contexte favorable (10 points)
-    if (formData.situation === 'rupture') score += 5 // Rupture = indemnité due automatiquement
-    if (joursNonPris >= 10) score += 3 // Montant significatif
-    if (formData.indemnitePayee === 'non') score += 2 // Rien payé = créance claire
-    
-    // Catégorisation
-    let categorie = ''
-    if (score >= 80) categorie = 'EXCELLENT - Dossier très solide'
-    else if (score >= 60) categorie = 'BON - Bonnes chances de succès'
-    else if (score >= 40) categorie = 'MOYEN - Dossier à renforcer'
-    else categorie = 'FAIBLE - Preuves insuffisantes'
-    
-    // Recommandations personnalisées
-    const recommandations: string[] = []
-    
-    if (score >= 70) {
-      recommandations.push('🎯 Votre dossier est solide. Vous pouvez procéder avec confiance.')
-    }
-    
-    if (formData.indemnitePayee === 'non') {
-      recommandations.push('📝 Envoyez une mise en demeure en recommandé avec AR réclamant le paiement de l\'indemnité compensatrice de congés payés.')
-    } else if (formData.indemnitePayee === 'partiel') {
-      recommandations.push('📝 Réclamez le complément d\'indemnité compensatrice avec calcul détaillé.')
-    }
-    
-    if (!formData.preuvesDisponibles.includes('bulletins')) {
-      recommandations.push('📄 Demandez vos bulletins de salaire à l\'employeur (obligation légale Art. R3243-4).')
-    }
-    
-    if (!formData.preuvesDisponibles.includes('attestation')) {
-      recommandations.push('📋 Demandez une attestation de solde de tout compte mentionnant les CP.')
-    }
-    
-    if (formData.refusEmployeur === 'oui' && !formData.preuvesDisponibles.includes('emails_refus')) {
-      recommandations.push('✉️ Rassemblez tous les emails ou courriers prouvant les refus de congés.')
-    }
-    
-    if (anciennete > 2 && anciennete <= 3) {
-      recommandations.push('⚠️ URGENT : Vous approchez de la prescription de 3 ans. Agissez rapidement !')
-    }
-    
-    if (anciennete > 3) {
-      recommandations.push('🚨 ATTENTION : Délai de prescription dépassé pour certains CP (3 ans). Seuls les CP des 3 dernières années sont réclamables.')
-    }
-    
-    if (montantNet > 3000) {
-      recommandations.push('⚖️ Montant significatif : consultez un avocat spécialisé en droit du travail pour optimiser votre stratégie.')
-    }
-    
-    if (formData.situation === 'rupture') {
-      recommandations.push('💼 En cas de rupture, l\'indemnité compensatrice est due automatiquement et doit figurer sur le solde de tout compte.')
-    }
-    
-    if (score < 50) {
-      recommandations.push('🔍 Renforcez votre dossier en rassemblant plus de preuves documentaires avant d\'engager une procédure.')
-    }
-    
-    if (formData.situation === 'en_poste') {
-      recommandations.push('📅 Si toujours en poste, demandez d\'abord à poser vos CP. La réclamation pécuniaire n\'est possible qu\'en cas de refus ou rupture.')
-    }
-    
-    recommandations.push('🤝 Privilégiez d\'abord une solution amiable avant d\'engager une procédure prud\'homale.')
-    
-    // Textes de loi applicables
-    const textesDeLoi = [
-      'Article L3141-1 Code du travail : Droit aux congés payés (2.5 jours ouvrables par mois)',
-      'Article L3141-22 Code du travail : Indemnité de congés payés (maintien de salaire)',
-      'Article L3141-24 Code du travail : Méthode du 1/10ème de la rémunération brute',
-      'Article L3141-26 Code du travail : Indemnité compensatrice en cas de rupture du contrat',
-      'Article L3141-28 Code du travail : Interdiction de remplacer les CP par une indemnité (sauf rupture)',
-      'Article L3245-1 Code du travail : Prescription de 3 ans pour réclamer les CP non pris',
-      'Article R3243-4 Code du travail : Mention obligatoire du solde de CP sur le bulletin'
-    ]
-    
-    // Procédure recommandée
-    const procedureRecommandee = [
-      '1️⃣ Rassembler toutes les preuves (bulletins, emails, attestations)',
-      '2️⃣ Calculer précisément le montant dû avec les deux méthodes légales',
-      '3️⃣ Envoyer une mise en demeure en recommandé avec AR',
-      '4️⃣ Délai de réponse : 15 jours minimum',
-      '5️⃣ Si refus ou absence de réponse : saisir le Conseil de prud\'hommes',
-      '6️⃣ Possibilité de référé prud\'homal si créance non sérieusement contestable'
-    ]
-    
-    // Points de vigilance
-    const pointsVigilance = [
-      '⚠️ La prescription est de 3 ans à compter de la date où les CP auraient dû être pris',
-      '⚠️ En cas de temps partiel, les droits à CP sont proportionnels',
-      '⚠️ Les CP acquis ne peuvent être remplacés par une indemnité que lors de la rupture',
-      '⚠️ L\'employeur ne peut imposer des dates de CP sans respecter un délai de prévenance',
-      '⚠️ Le refus abusif de poser des CP peut constituer une faute de l\'employeur'
-    ]
-    
-    if (anciennete > 3) {
-      pointsVigilance.push('🚨 CRITIQUE : Prescription dépassée pour les CP de plus de 3 ans')
-    }
+  const calculateScore = (): number => {
+    let scoreProbleme = 0
+    let scoreMontant = 0
+    let scorePreuves = 0
+    let scoreContexte = 0
 
-    setResults({
-      score,
-      joursNonPris,
-      methode1dixieme,
-      methodeMaintienSalaire,
-      methodeRetenue,
-      montantDu,
-      congesSurConges,
-      montantTotal,
-      montantNet,
-      categorie,
-      recommandations,
-      textesDeLoi,
-      procedureRecommandee,
-      delaisPrescription: anciennete <= 3 ? 'Dans les délais ✅' : 'DÉPASSÉ ⚠️',
-      pointsVigilance
-    })
+    // Score problème (30 points)
+    if (formData.natureLitige.includes('conges_refuses')) scoreProbleme += 10
+    if (formData.natureLitige.includes('calcul_incorrect')) scoreProbleme += 8
+    if (formData.natureLitige.includes('cp_non_payes')) scoreProbleme += 12
+    if (formData.natureLitige.includes('report_refuse')) scoreProbleme += 5
+    if (formData.natureLitige.includes('prise_imposee')) scoreProbleme += 7
     
-    setShowResults(true)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    scoreProbleme = Math.min(scoreProbleme, 30)
+
+    // Score montant (25 points)
+    const montant = parseFloat(formData.montantConteste) || 0
+    if (montant >= 5000) scoreMontant = 25
+    else if (montant >= 3000) scoreMontant = 20
+    else if (montant >= 1500) scoreMontant = 15
+    else if (montant >= 500) scoreMontant = 10
+    else if (montant > 0) scoreMontant = 5
+
+    // Score preuves (25 points)
+    const nbPreuves = formData.preuves.length
+    if (nbPreuves >= 5) scorePreuves = 25
+    else if (nbPreuves === 4) scorePreuves = 20
+    else if (nbPreuves === 3) scorePreuves = 15
+    else if (nbPreuves === 2) scorePreuves = 10
+    else if (nbPreuves === 1) scorePreuves = 5
+
+    // Score contexte (20 points)
+    const anciennete = parseInt(formData.anciennete) || 0
+    if (anciennete >= 10) scoreContexte += 8
+    else if (anciennete >= 5) scoreContexte += 5
+    else scoreContexte += 2
+
+    if (formData.refusEmployeur === 'ecrit') scoreContexte += 7
+    else if (formData.refusEmployeur === 'oral') scoreContexte += 4
+
+    if (formData.demarchesDeja.includes('medecine_travail')) scoreContexte += 3
+    if (formData.demarchesDeja.includes('inspection')) scoreContexte += 5
+
+    setScores({
+      preuves: scorePreuves,
+      montant: scoreMontant,
+      droit: scoreProbleme,
+      contexte: scoreContexte
+    })
+
+    return scoreProbleme + scoreMontant + scorePreuves + scoreContexte
   }
 
-  const resetDiagnostic = () => {
-    localStorage.removeItem('diagnostic_conges_payes')
+  const calculerIndemnites = () => {
+    const salaireBrut = parseFloat(formData.salaireBrut) || 0
+    const anciennete = parseInt(formData.anciennete) || 0
+    const congesAcquis = parseFloat(formData.congesAcquis) || 0
+    const congesPris = parseFloat(formData.congesPris) || 0
+    
+    // Calcul des jours restants
+    const joursRestants = Math.max(0, congesAcquis - congesPris)
+    
+    // Calcul de l'indemnité de CP (10% du salaire brut)
+    const indemniteCP = (salaireBrut * 0.10) * (joursRestants / 25)
+    
+    // Calcul de l'indemnité compensatrice
+    const salaireJournalier = salaireBrut / 21.67 // Moyenne mensuelle
+    const indemniteCompensatrice = salaireJournalier * joursRestants
+    
+    // Prise en compte du mode de calcul le plus favorable
+    const indemnitePrincipale = Math.max(indemniteCP, indemniteCompensatrice)
+    
+    // Dommages et intérêts selon la gravité
+    let dommagesInterets = 0
+    if (formData.natureLitige.includes('cp_non_payes')) {
+      dommagesInterets = salaireBrut * 0.5 // 0.5 mois de salaire
+    }
+    if (formData.natureLitige.includes('conges_refuses')) {
+      dommagesInterets += salaireBrut * 0.3
+    }
+    
+    const total = indemnitePrincipale + dommagesInterets
+    
+    setCalculs({
+      joursAcquisTotal: congesAcquis,
+      joursPris: congesPris,
+      joursRestants: joursRestants,
+      indemniteCP: indemniteCP,
+      indemniteCompensatrice: indemniteCompensatrice,
+      dommagesInterets: dommagesInterets,
+      total: total
+    })
+  }
+
+  const handleSubmit = () => {
+    setIsCalculating(true)
+    
+    setTimeout(() => {
+      calculateScore()
+      calculerIndemnites()
+      setShowResults(true)
+      setIsCalculating(false)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }, 2000)
+  }
+
+  const handleRestart = () => {
     setFormData({
-      dateDebut: '',
-      dateFin: '',
-      situation: '',
+      situationPro: '',
       typeContrat: '',
-      tempsPartiel: 'non',
-      tauxTempsPartiel: '100',
-      joursAcquis: '',
-      joursPris: '',
-      joursRTT: '0',
-      soldeAfficheBulletin: '',
-      methodeCPAcquis: 'calcul',
-      salaireBrutMensuel: '',
-      primesRegulières: '0',
-      treizièmeMois: 'non',
-      avantagesNature: '0',
-      heuresSupHabituelles: '0',
-      autresElements: '0',
-      refusEmployeur: '',
-      detailsRefus: '',
-      preuvesDisponibles: [],
-      detailsPreuves: '',
-      indemnitePayee: '',
-      montantDejaPercu: '0',
       anciennete: '',
-      objectifs: []
+      salaireBrut: '',
+      congesAcquis: '',
+      congesPris: '',
+      periodeAcquisition: '',
+      datesSortie: '',
+      natureLitige: [],
+      montantConteste: '',
+      refusEmployeur: '',
+      preuves: [],
+      dateDepart: '',
+      modeCalcul: '',
+      primesIncluses: '',
+      demarchesDeja: [],
+      objectifs: [],
+      urgence: '',
+      detailsSituation: ''
     })
     setCurrentStep(1)
     setShowResults(false)
-    setResults(null)
+    setScores({ preuves: 0, montant: 0, droit: 0, contexte: 0 })
+    setCalculs({
+      joursAcquisTotal: 0,
+      joursPris: 0,
+      joursRestants: 0,
+      indemniteCP: 0,
+      indemniteCompensatrice: 0,
+      dommagesInterets: 0,
+      total: 0
+    })
+    localStorage.removeItem('diagnostic_conges_payes')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Affichage des résultats
-  if (showResults && results) {
+  const getScoreColor = (score: number): string => {
+    if (score >= 75) return 'text-red-600'
+    if (score >= 50) return 'text-orange-500'
+    if (score >= 30) return 'text-yellow-600'
+    return 'text-green-600'
+  }
+
+  const getScoreBgColor = (score: number): string => {
+    if (score >= 75) return 'bg-red-50 border-red-200'
+    if (score >= 50) return 'bg-orange-50 border-orange-200'
+    if (score >= 30) return 'bg-yellow-50 border-yellow-200'
+    return 'bg-green-50 border-green-200'
+  }
+
+  const getScoreLabel = (score: number): string => {
+    if (score >= 75) return 'Situation très grave'
+    if (score >= 50) return 'Situation préoccupante'
+    if (score >= 30) return 'Situation à surveiller'
+    return 'Situation gérable'
+  }
+
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2
+    }).format(amount)
+  }
+
+  const totalScore = Object.values(scores).reduce((a, b) => a + b, 0)
+
+  if (showResults) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-        {/* Header */}
-        <header className="bg-white shadow-sm border-b">
+        {/* Header avec fond blanc et texte sombre */}
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-2">
-                <span className="text-2xl font-bold">
-                  <span className="text-blue-600">JUSTI</span>
-                  <span className="text-gray-900">JOB</span>
-                </span>
-              </div>
+            <div className="flex items-center justify-between">
+              <Link href="/diagnostic" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-green-500 rounded-xl flex items-center justify-center">
+                  <span className="text-white text-xl font-bold">J</span>
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">JustiJob</h1>
+                  <p className="text-xs text-gray-600">Diagnostic Congés Payés</p>
+                </div>
+              </Link>
+              
               <button
-                onClick={() => router.push('/diagnostic')}
-                className="text-gray-600 hover:text-blue-600 font-medium"
+                onClick={handleRestart}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                ← Retour aux diagnostics
+                ← Recommencer
               </button>
             </div>
           </div>
         </header>
 
         {/* Résultats */}
-        <div className="max-w-5xl mx-auto px-4 py-8">
-          {/* Score principal */}
-          <div className="bg-gradient-to-r from-blue-600 to-green-600 rounded-2xl shadow-2xl p-8 text-white mb-8">
+        <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Score global */}
+          <div className={`mb-8 p-8 rounded-2xl border-2 ${getScoreBgColor(totalScore)}`}>
+            <div className="text-center mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                Résultats de votre diagnostic
+              </h2>
+              <p className="text-gray-600">Analyse complète de votre situation</p>
+            </div>
+            
+            <div className="flex items-center justify-center mb-6">
+              <div className="relative">
+                <svg className="transform -rotate-90 w-48 h-48">
+                  <circle
+                    cx="96"
+                    cy="96"
+                    r="88"
+                    stroke="#e5e7eb"
+                    strokeWidth="12"
+                    fill="none"
+                  />
+                  <circle
+                    cx="96"
+                    cy="96"
+                    r="88"
+                    stroke="currentColor"
+                    strokeWidth="12"
+                    fill="none"
+                    strokeDasharray={`${(totalScore / 100) * 552.92} 552.92`}
+                    className={getScoreColor(totalScore)}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className={`text-5xl font-bold ${getScoreColor(totalScore)}`}>
+                    {totalScore}
+                  </span>
+                  <span className="text-gray-600 text-sm mt-1">/ 100</span>
+                </div>
+              </div>
+            </div>
+            
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-24 h-24 bg-white rounded-full mb-4">
-                <span className="text-5xl">🏖️</span>
-              </div>
-              <h1 className="text-3xl font-bold mb-2">Résultats du Diagnostic</h1>
-              <p className="text-xl text-blue-100 mb-6">Congés Payés Non Pris</p>
-              
-              <div className="flex justify-center items-center gap-8 mb-6">
-                <div>
-                  <div className="text-5xl font-bold">{results.score}/100</div>
-                  <div className="text-sm text-blue-100">Score de solidité</div>
-                </div>
-                <div className="h-16 w-px bg-white/30"></div>
-                <div>
-                  <div className="text-4xl font-bold">{results.joursNonPris}</div>
-                  <div className="text-sm text-blue-100">Jours non pris</div>
-                </div>
-              </div>
-              
-              <div className="bg-white/20 rounded-xl p-4 backdrop-blur">
-                <div className="text-sm text-blue-100 mb-1">Catégorie du dossier</div>
-                <div className="text-2xl font-bold">{results.categorie}</div>
-              </div>
+              <p className={`text-2xl font-bold mb-2 ${getScoreColor(totalScore)}`}>
+                {getScoreLabel(totalScore)}
+              </p>
+              <p className="text-gray-600 max-w-2xl mx-auto">
+                {totalScore >= 75 && "Votre situation présente des violations graves. Une action juridique rapide est fortement recommandée."}
+                {totalScore >= 50 && totalScore < 75 && "Votre situation nécessite une attention particulière. Consultez un avocat pour évaluer vos options."}
+                {totalScore >= 30 && totalScore < 50 && "Votre situation peut être résolue, mais nécessite une action. Documentez tout soigneusement."}
+                {totalScore < 30 && "Votre situation semble gérable. Continuez à documenter et suivre l'évolution."}
+              </p>
             </div>
           </div>
 
-          {/* Montants détaillés */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-              <span className="text-3xl">💰</span>
-              Calcul des Montants Dus
-            </h2>
-            
-            <div className="space-y-6">
-              {/* Deux méthodes de calcul */}
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-blue-50 rounded-xl p-4">
-                  <div className="text-sm text-blue-600 font-semibold mb-2">Méthode du 1/10ème</div>
-                  <div className="text-sm text-gray-600 mb-2">Article L3141-24</div>
-                  <div className="text-2xl font-bold text-gray-900">
-                    {results.methode1dixieme.toFixed(2)} €
+          {/* Détails des scores */}
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900">📊 Détail des scores</h3>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-sm text-gray-600">Nature du litige</span>
+                    <span className="text-sm font-semibold">{scores.droit}/30</span>
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-500 rounded-full transition-all"
+                      style={{ width: `${(scores.droit / 30) * 100}%` }}
+                    />
                   </div>
                 </div>
                 
-                <div className="bg-green-50 rounded-xl p-4">
-                  <div className="text-sm text-green-600 font-semibold mb-2">Maintien de salaire</div>
-                  <div className="text-sm text-gray-600 mb-2">Article L3141-22</div>
-                  <div className="text-2xl font-bold text-gray-900">
-                    {results.methodeMaintienSalaire.toFixed(2)} €
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-sm text-gray-600">Montant en jeu</span>
+                    <span className="text-sm font-semibold">{scores.montant}/25</span>
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-green-500 rounded-full transition-all"
+                      style={{ width: `${(scores.montant / 25) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-sm text-gray-600">Solidité des preuves</span>
+                    <span className="text-sm font-semibold">{scores.preuves}/25</span>
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-purple-500 rounded-full transition-all"
+                      style={{ width: `${(scores.preuves / 25) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-sm text-gray-600">Contexte & ancienneté</span>
+                    <span className="text-sm font-semibold">{scores.contexte}/20</span>
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-orange-500 rounded-full transition-all"
+                      style={{ width: `${(scores.contexte / 20) * 100}%` }}
+                    />
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Méthode retenue */}
-              <div className="bg-gradient-to-r from-blue-500 to-green-500 rounded-xl p-4 text-white">
-                <div className="text-sm font-semibold mb-1">✅ Méthode la plus favorable retenue :</div>
-                <div className="text-xl font-bold">{results.methodeRetenue}</div>
-              </div>
-
-              {/* Détail du calcul */}
-              <div className="border-t pt-6">
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700">Indemnité compensatrice de base</span>
-                    <span className="font-semibold text-lg">{results.montantDu.toFixed(2)} €</span>
+            {/* Calculs d'indemnités */}
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+              <h3 className="font-semibold text-gray-900 mb-4">💰 Estimation des indemnités</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">Jours acquis</span>
+                  <span className="font-semibold text-gray-900">{calculs.joursAcquisTotal} j</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">Jours pris</span>
+                  <span className="font-semibold text-gray-900">{calculs.joursPris} j</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-sm font-medium text-blue-600">Jours restants</span>
+                  <span className="font-bold text-blue-600">{calculs.joursRestants} j</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">Indemnité 10%</span>
+                  <span className="font-semibold text-gray-900">{formatCurrency(calculs.indemniteCP)}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">Indemnité maintien</span>
+                  <span className="font-semibold text-gray-900">{formatCurrency(calculs.indemniteCompensatrice)}</span>
+                </div>
+                {calculs.dommagesInterets > 0 && (
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-sm text-gray-600">Dommages et intérêts</span>
+                    <span className="font-semibold text-orange-600">{formatCurrency(calculs.dommagesInterets)}</span>
                   </div>
-                  
-                  <div className="flex justify-between items-center text-green-600">
-                    <span>+ Congés payés sur congés payés (10%)</span>
-                    <span className="font-semibold">+ {results.congesSurConges.toFixed(2)} €</span>
-                  </div>
-                  
-                  <div className="border-t pt-3 flex justify-between items-center">
-                    <span className="text-gray-700">Montant total brut</span>
-                    <span className="font-bold text-xl">{results.montantTotal.toFixed(2)} €</span>
-                  </div>
-                  
-                  {parseFloat(formData.montantDejaPercu) > 0 && (
-                    <>
-                      <div className="flex justify-between items-center text-red-600">
-                        <span>- Montant déjà perçu</span>
-                        <span className="font-semibold">- {parseFloat(formData.montantDejaPercu).toFixed(2)} €</span>
-                      </div>
-                      
-                      <div className="bg-gray-50 rounded-xl p-4 flex justify-between items-center">
-                        <span className="font-bold text-gray-900">Montant net à réclamer</span>
-                        <span className="font-bold text-2xl text-blue-600">{results.montantNet.toFixed(2)} €</span>
-                      </div>
-                    </>
-                  )}
+                )}
+                <div className="flex justify-between items-center pt-4 mt-4 border-t-2 border-gray-300">
+                  <span className="text-base font-bold text-gray-900">TOTAL ESTIMÉ</span>
+                  <span className="text-xl font-bold text-green-600">{formatCurrency(calculs.total)}</span>
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Délai de prescription */}
-          <div className={`rounded-2xl shadow-xl p-6 mb-8 ${
-            parseInt(formData.anciennete) <= 3 
-              ? 'bg-green-50 border-2 border-green-500' 
-              : 'bg-red-50 border-2 border-red-500'
-          }`}>
-            <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
-              <span>⏰</span>
-              <span>Délai de Prescription</span>
-            </h3>
-            <div className="mb-2">
-              <span className="text-2xl font-bold">{results.delaisPrescription}</span>
-            </div>
-            <p className="text-sm text-gray-700">
-              {parseInt(formData.anciennete) <= 3 
-                ? `Vos congés non pris datent de moins de 3 ans. Vous êtes dans les délais légaux pour les réclamer.`
-                : `⚠️ ATTENTION : Les congés payés de plus de 3 ans sont prescrits. Seuls les CP des 3 dernières années peuvent être réclamés.`
-              }
-            </p>
           </div>
 
           {/* Recommandations */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-              <span className="text-3xl">💡</span>
-              Recommandations Personnalisées
-            </h2>
-            <div className="space-y-3">
-              {results.recommandations.map((rec, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl">
-                  <span className="text-2xl flex-shrink-0">{rec.split(' ')[0]}</span>
-                  <p className="text-gray-700 flex-1">{rec.substring(rec.indexOf(' ') + 1)}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+          <div className="bg-white rounded-xl p-8 border border-gray-200 shadow-sm mb-8">
+            <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+              <span className="mr-3">💡</span>
+              Recommandations personnalisées
+            </h3>
+            
+            <div className="space-y-6">
+              {/* Actions immédiates */}
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                  <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                  Actions immédiates
+                </h4>
+                <ul className="space-y-2 ml-4">
+                  <li className="text-gray-700 flex items-start">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>Envoyez une mise en demeure écrite (LRAR) réclamant vos congés payés ou leur indemnisation</span>
+                  </li>
+                  <li className="text-gray-700 flex items-start">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>Rassemblez tous vos bulletins de paie, contrat de travail et relevés de congés</span>
+                  </li>
+                  {formData.natureLitige.includes('cp_non_payes') && (
+                    <li className="text-gray-700 flex items-start">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>Contactez l'inspection du travail pour signaler le non-paiement des congés</span>
+                    </li>
+                  )}
+                </ul>
+              </div>
 
-          {/* Procédure recommandée */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-              <span className="text-3xl">📋</span>
-              Procédure Recommandée
-            </h2>
-            <div className="space-y-3">
-              {results.procedureRecommandee.map((step, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                  <span className="flex-1 text-gray-700">{step}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+              {/* Démarches juridiques */}
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                  <span className="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
+                  Démarches juridiques
+                </h4>
+                <ul className="space-y-2 ml-4">
+                  {totalScore >= 50 ? (
+                    <>
+                      <li className="text-gray-700 flex items-start">
+                        <span className="text-blue-500 mr-2">•</span>
+                        <span>Consultation avocat spécialisé en droit du travail recommandée (sous 30 jours)</span>
+                      </li>
+                      <li className="text-gray-700 flex items-start">
+                        <span className="text-blue-500 mr-2">•</span>
+                        <span>Préparez un dossier complet pour saisine du Conseil de Prud'hommes</span>
+                      </li>
+                    </>
+                  ) : (
+                    <>
+                      <li className="text-gray-700 flex items-start">
+                        <span className="text-blue-500 mr-2">•</span>
+                        <span>Tentez d'abord une résolution amiable par courrier recommandé</span>
+                      </li>
+                      <li className="text-gray-700 flex items-start">
+                        <span className="text-blue-500 mr-2">•</span>
+                        <span>Si échec, consultez un avocat pour évaluer l'opportunité d'une action</span>
+                      </li>
+                    </>
+                  )}
+                </ul>
+              </div>
 
-          {/* Points de vigilance */}
-          <div className="bg-orange-50 border-2 border-orange-500 rounded-2xl shadow-xl p-8 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-              <span className="text-3xl">⚠️</span>
-              Points de Vigilance
-            </h2>
-            <div className="space-y-3">
-              {results.pointsVigilance.map((point, idx) => (
-                <div key={idx} className="flex items-start gap-3">
-                  <span className="text-orange-600 flex-shrink-0 mt-0.5">{point.split(' ')[0]}</span>
-                  <p className="text-gray-700">{point.substring(point.indexOf(' ') + 1)}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Textes de loi */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-              <span className="text-3xl">⚖️</span>
-              Cadre Juridique Applicable
-            </h2>
-            <div className="space-y-3">
-              {results.textesDeLoi.map((texte, idx) => (
-                <div key={idx} className="p-4 bg-gray-50 rounded-xl">
-                  <p className="text-sm text-gray-700">
-                    <span className="font-semibold text-blue-600">
-                      {texte.split(':')[0]}
-                    </span>
-                    {texte.includes(':') && ': ' + texte.split(':')[1]}
+              {/* Délais */}
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                  <span className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></span>
+                  Délais à respecter
+                </h4>
+                <div className="ml-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-gray-700 text-sm">
+                    <strong>⚠️ Important :</strong> Vous disposez de <strong>3 ans</strong> à compter de la fin de la période d'acquisition 
+                    des congés pour réclamer vos congés payés ou leur indemnisation (Art. L. 3245-1 du Code du travail).
                   </p>
                 </div>
-              ))}
+              </div>
+
+              {/* Preuves à conserver */}
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                  <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                  Preuves essentielles
+                </h4>
+                <ul className="space-y-2 ml-4">
+                  <li className="text-gray-700 flex items-start">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>Tous les bulletins de paie montrant l'acquisition et la prise de congés</span>
+                  </li>
+                  <li className="text-gray-700 flex items-start">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>Récapitulatifs de congés émis par l'employeur</span>
+                  </li>
+                  <li className="text-gray-700 flex items-start">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>Demandes de congés et réponses de l'employeur (emails, courriers)</span>
+                  </li>
+                  <li className="text-gray-700 flex items-start">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>Planning des congés de l'entreprise</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
 
-          {/* CTA */}
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-2xl p-8 text-white text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full mb-4">
-              <span className="text-3xl">📄</span>
-            </div>
-            <h3 className="text-2xl font-bold mb-4">
-              Besoin d'un Dossier Juridique Complet ?
+          {/* Références légales */}
+          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-8 border border-blue-200 mb-8">
+            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+              <span className="mr-3">📚</span>
+              Références légales
             </h3>
-            <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
-              Obtenez un dossier de 30 pages avec jurisprudence, modèles de courriers,
-              stratégie personnalisée et accompagnement par un avocat partenaire
-            </p>
-            <div className="flex flex-wrap justify-center gap-4 mb-6">
-              <div className="bg-white/20 px-6 py-3 rounded-lg">
-                <div className="text-2xl font-bold">120€</div>
-                <div className="text-sm text-blue-100">Grand public</div>
-              </div>
-              <div className="bg-white/20 px-6 py-3 rounded-lg">
-                <div className="text-2xl font-bold">60€</div>
-                <div className="text-sm text-blue-100">Membres syndicats</div>
-              </div>
+            <div className="space-y-3 text-sm">
+              <p className="text-gray-700">
+                <strong>Art. L. 3141-1 et suivants</strong> : Droit aux congés payés (2,5 jours ouvrables par mois de travail effectif)
+              </p>
+              <p className="text-gray-700">
+                <strong>Art. L. 3141-22 et suivants</strong> : Indemnité de congés payés (méthode du maintien de salaire ou règle du 1/10)
+              </p>
+              <p className="text-gray-700">
+                <strong>Art. L. 3141-26</strong> : Indemnité compensatrice en cas de rupture du contrat
+              </p>
+              <p className="text-gray-700">
+                <strong>Art. L. 3245-1</strong> : Prescription de 3 ans pour les actions en paiement de congés payés
+              </p>
             </div>
-            <button className="bg-white text-blue-600 px-8 py-3 rounded-xl font-bold hover:bg-blue-50 transition-colors">
-              Obtenir mon dossier complet
-            </button>
           </div>
 
-          {/* Boutons d'action */}
+          {/* Actions */}
           <div className="flex gap-4">
             <button
-              onClick={resetDiagnostic}
-              className="flex-1 bg-gray-600 text-white py-4 rounded-xl font-semibold hover:bg-gray-700 transition-colors"
+              onClick={handleRestart}
+              className="flex-1 px-8 py-4 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
             >
-              Nouveau diagnostic
+              🔄 Nouveau diagnostic
             </button>
             <button
+              className="flex-1 px-8 py-4 bg-gradient-to-r from-blue-600 to-green-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
               onClick={() => window.print()}
-              className="flex-1 bg-blue-600 text-white py-4 rounded-xl font-semibold hover:bg-blue-700 transition-colors"
             >
-              Imprimer les résultats
+              📄 Télécharger le rapport
             </button>
           </div>
-        </div>
+        </main>
+
+        {/* Footer avec fond sombre et texte blanc */}
+        <footer className="bg-gray-900 text-white py-8 mt-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center">
+              <p className="text-sm text-gray-400 mb-2">
+                ⚖️ Ce diagnostic est fourni à titre informatif. Il ne remplace pas les conseils d'un avocat.
+              </p>
+              <p className="text-sm text-gray-400">
+                Pour un accompagnement personnalisé, consultez un avocat spécialisé en droit du travail.
+              </p>
+              <p className="text-xs text-gray-500 mt-4">
+                © 2025 JustiJob - Tous droits réservés
+              </p>
+            </div>
+          </div>
+        </footer>
       </div>
     )
   }
 
-  // Formulaire par étapes
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <span className="text-2xl font-bold">
-                <span className="text-blue-600">JUSTI</span>
-                <span className="text-gray-900">JOB</span>
-              </span>
-            </div>
-            <button
-              onClick={() => router.push('/diagnostic')}
-              className="text-gray-600 hover:text-blue-600 font-medium"
+      {/* Header avec fond blanc et texte sombre */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <Link href="/diagnostic" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-green-500 rounded-xl flex items-center justify-center">
+                <span className="text-white text-xl font-bold">J</span>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">JustiJob</h1>
+                <p className="text-xs text-gray-600">Diagnostic Congés Payés</p>
+              </div>
+            </Link>
+            
+            <Link 
+              href="/diagnostic"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               ← Retour
-            </button>
+            </Link>
           </div>
         </div>
       </header>
 
-      {/* Progression */}
-      <div className="bg-white border-b">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between mb-2">
-            {[1, 2, 3, 4].map((step) => (
-              <div key={step} className="flex items-center flex-1">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                  currentStep >= step ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {step}
-                </div>
-                {step < 4 && (
-                  <div className={`flex-1 h-1 mx-2 ${
-                    currentStep > step ? 'bg-blue-600' : 'bg-gray-200'
-                  }`} />
-                )}
-              </div>
-            ))}
+      {/* Barre de progression */}
+      <div className="bg-white border-b border-gray-200 py-4">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-gray-600">
+              Étape {currentStep} sur {totalSteps}
+            </span>
+            <span className="text-sm font-medium text-gray-600">
+              {Math.round((currentStep / totalSteps) * 100)}%
+            </span>
           </div>
-          <div className="flex justify-between text-xs text-gray-600">
-            <span>Période</span>
-            <span>Congés</span>
-            <span>Salaire</span>
-            <span>Contexte</span>
+          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-500"
+              style={{ width: `${(currentStep / totalSteps) * 100}%` }}
+            />
           </div>
         </div>
       </div>
 
       {/* Formulaire */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          {/* ÉTAPE 1 */}
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
+          
+          {/* Étape 1 : Informations générales */}
           {currentStep === 1 && (
-            <div>
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                  <span className="text-3xl">🏖️</span>
-                </div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                  Diagnostic Congés Payés Non Pris
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  📋 Informations générales
                 </h2>
                 <p className="text-gray-600">
-                  Étape 1/4 : Période et situation professionnelle
+                  Commençons par vos informations professionnelles
                 </p>
               </div>
 
-              <div className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Date de début de période *
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.dateDebut}
-                      onChange={(e) => updateFormData('dateDebut', e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Date d'embauche ou début de période concernée</p>
-                  </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quelle est votre situation professionnelle actuelle ? *
+                </label>
+                <select
+                  value={formData.situationPro}
+                  onChange={(e) => handleInputChange('situationPro', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Sélectionnez...</option>
+                  <option value="en_poste">En poste</option>
+                  <option value="demission">Démission en cours</option>
+                  <option value="licencie">Licencié(e)</option>
+                  <option value="rupture_conv">Rupture conventionnelle</option>
+                  <option value="fin_cdd">Fin de CDD</option>
+                </select>
+              </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Date de fin de période *
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.dateFin}
-                      onChange={(e) => updateFormData('dateFin', e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Aujourd'hui ou date de départ</p>
-                  </div>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type de contrat *
+                </label>
+                <select
+                  value={formData.typeContrat}
+                  onChange={(e) => handleInputChange('typeContrat', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Sélectionnez...</option>
+                  <option value="cdi">CDI</option>
+                  <option value="cdd">CDD</option>
+                  <option value="interim">Intérim</option>
+                  <option value="apprentissage">Apprentissage</option>
+                  <option value="professionnalisation">Professionnalisation</option>
+                </select>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Situation actuelle *
-                  </label>
-                  <select
-                    value={formData.situation}
-                    onChange={(e) => updateFormData('situation', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="">-- Sélectionnez --</option>
-                    <option value="en_poste">Toujours en poste</option>
-                    <option value="rupture">Contrat rompu (démission, licenciement, fin CDD)</option>
-                    <option value="preavis">En période de préavis</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Ancienneté dans l'entreprise (en années) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={formData.anciennete}
+                  onChange={(e) => handleInputChange('anciennete', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ex: 5.5"
+                />
+              </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Type de contrat *
-                  </label>
-                  <select
-                    value={formData.typeContrat}
-                    onChange={(e) => updateFormData('typeContrat', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="">-- Sélectionnez --</option>
-                    <option value="cdi">CDI</option>
-                    <option value="cdd">CDD</option>
-                    <option value="interim">Intérim</option>
-                    <option value="apprentissage">Apprentissage</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Temps de travail *
-                  </label>
-                  <select
-                    value={formData.tempsPartiel}
-                    onChange={(e) => {
-                      updateFormData('tempsPartiel', e.target.value)
-                      if (e.target.value === 'non') {
-                        updateFormData('tauxTempsPartiel', '100')
-                      }
-                    }}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="non">Temps plein</option>
-                    <option value="oui">Temps partiel</option>
-                  </select>
-                </div>
-
-                {formData.tempsPartiel === 'oui' && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Taux de temps partiel (en %) *
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.tauxTempsPartiel}
-                      onChange={(e) => updateFormData('tauxTempsPartiel', e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                      placeholder="Ex: 80 pour 80%"
-                      min="1"
-                      max="99"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Ex: 80% pour un temps partiel à 4 jours/semaine
-                    </p>
-                  </div>
-                )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Salaire brut mensuel (€) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.salaireBrut}
+                  onChange={(e) => handleInputChange('salaireBrut', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ex: 2500"
+                />
               </div>
             </div>
           )}
 
-          {/* ÉTAPE 2 */}
+          {/* Étape 2 : Gestion des congés payés */}
           {currentStep === 2 && (
-            <div>
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-                  <span className="text-3xl">📊</span>
-                </div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                  Congés Acquis et Pris
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  🏖️ Gestion de vos congés payés
                 </h2>
                 <p className="text-gray-600">
-                  Étape 2/4 : Décompte des jours de congés
+                  Détails sur vos congés payés acquis et pris
                 </p>
               </div>
 
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Comment connaissez-vous vos CP acquis ? *
-                  </label>
-                  <select
-                    value={formData.methodeCPAcquis}
-                    onChange={(e) => updateFormData('methodeCPAcquis', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="calcul">Je calcule (2.5 jours par mois travaillé)</option>
-                    <option value="bulletin">Indiqué sur mon bulletin de salaire</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre de jours de congés payés acquis (solde total) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={formData.congesAcquis}
+                  onChange={(e) => handleInputChange('congesAcquis', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ex: 25"
+                />
+                <p className="mt-2 text-sm text-gray-500">
+                  💡 Rappel : 2,5 jours ouvrables par mois travaillé (30 jours par an pour une année complète)
+                </p>
+              </div>
 
-                {formData.methodeCPAcquis === 'calcul' ? (
-                  <>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Nombre de jours de CP acquis *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.5"
-                        value={formData.joursAcquis}
-                        onChange={(e) => updateFormData('joursAcquis', e.target.value)}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                        placeholder="Ex: 25"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Calcul : 2.5 jours ouvrables par mois travaillé (30 jours/an pour temps plein)
-                      </p>
-                    </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre de jours de congés payés pris *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={formData.congesPris}
+                  onChange={(e) => handleInputChange('congesPris', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ex: 15"
+                />
+              </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Nombre de jours de CP pris *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.5"
-                        value={formData.joursPris}
-                        onChange={(e) => updateFormData('joursPris', e.target.value)}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                        placeholder="Ex: 15"
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Solde de CP affiché sur bulletin *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      value={formData.soldeAfficheBulletin}
-                      onChange={(e) => updateFormData('soldeAfficheBulletin', e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                      placeholder="Ex: 10"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Regardez la ligne "Solde CP" ou "CP N-1" sur votre dernier bulletin
-                    </p>
-                  </div>
-                )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Période d'acquisition de référence
+                </label>
+                <select
+                  value={formData.periodeAcquisition}
+                  onChange={(e) => handleInputChange('periodeAcquisition', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Sélectionnez...</option>
+                  <option value="1juin_31mai">1er juin N-1 au 31 mai N (légal)</option>
+                  <option value="1jan_31dec">1er janvier au 31 décembre</option>
+                  <option value="autre">Autre période conventionnelle</option>
+                </select>
+                <p className="mt-2 text-sm text-gray-500">
+                  💡 Par défaut : période du 1er juin au 31 mai de l'année suivante
+                </p>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Jours de RTT (si applicable)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={formData.joursRTT}
-                    onChange={(e) => updateFormData('joursRTT', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                    placeholder="0"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Les RTT sont un droit distinct des CP et se calculent différemment
-                  </p>
-                </div>
-
-                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl">💡</span>
-                    <div>
-                      <p className="font-semibold text-blue-900 mb-1">Bon à savoir</p>
-                      <p className="text-sm text-blue-800">
-                        Les congés payés ne peuvent pas être remplacés par une indemnité, 
-                        SAUF en cas de rupture du contrat de travail (démission, licenciement, fin CDD).
-                        L'employeur doit alors verser une indemnité compensatrice.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date de sortie de l'entreprise (si applicable)
+                </label>
+                <input
+                  type="date"
+                  value={formData.datesSortie}
+                  onChange={(e) => handleInputChange('datesSortie', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
               </div>
             </div>
           )}
 
-          {/* ÉTAPE 3 */}
+          {/* Étape 3 : Problématique */}
           {currentStep === 3 && (
-            <div>
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
-                  <span className="text-3xl">💶</span>
-                </div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                  Salaire de Référence
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  ⚠️ Nature du litige
                 </h2>
                 <p className="text-gray-600">
-                  Étape 3/4 : Éléments de rémunération pour le calcul
+                  Quel est le problème concernant vos congés payés ?
                 </p>
               </div>
 
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Salaire brut mensuel *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.salaireBrutMensuel}
-                    onChange={(e) => updateFormData('salaireBrutMensuel', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                    placeholder="Ex: 2500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Salaire de base avant prélèvements
-                  </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Sélectionnez tous les problèmes rencontrés *
+                </label>
+                <div className="space-y-3">
+                  {[
+                    { value: 'conges_refuses', label: 'Congés refusés sans motif valable' },
+                    { value: 'calcul_incorrect', label: 'Calcul incorrect des congés acquis' },
+                    { value: 'cp_non_payes', label: 'Congés payés non payés à la sortie' },
+                    { value: 'report_refuse', label: 'Report de congés refusé' },
+                    { value: 'prise_imposee', label: 'Dates de congés imposées' },
+                    { value: 'solde_conteste', label: 'Solde de congés contesté par l\'employeur' }
+                  ].map(item => (
+                    <label key={item.value} className="flex items-start p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.natureLitige.includes(item.value)}
+                        onChange={() => handleCheckboxChange('natureLitige', item.value)}
+                        className="mt-1 mr-3 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">{item.label}</span>
+                    </label>
+                  ))}
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Primes régulières mensualisées (€)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.primesRegulières}
-                    onChange={(e) => updateFormData('primesRegulières', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                    placeholder="0"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Primes d'ancienneté, prime de performance mensuelle, etc.
-                  </p>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Montant total contesté (estimation en €)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.montantConteste}
+                  onChange={(e) => handleInputChange('montantConteste', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ex: 2500"
+                />
+              </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    13ème mois
-                  </label>
-                  <select
-                    value={formData.treizièmeMois}
-                    onChange={(e) => updateFormData('treizièmeMois', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="non">Non</option>
-                    <option value="oui">Oui</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  L'employeur a-t-il refusé formellement ?
+                </label>
+                <select
+                  value={formData.refusEmployeur}
+                  onChange={(e) => handleInputChange('refusEmployeur', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Sélectionnez...</option>
+                  <option value="ecrit">Oui, par écrit (email, courrier)</option>
+                  <option value="oral">Oui, oralement</option>
+                  <option value="silence">Non-réponse / silence</option>
+                  <option value="non">Non, pas de refus</option>
+                </select>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Avantages en nature (€/mois)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.avantagesNature}
-                    onChange={(e) => updateFormData('avantagesNature', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                    placeholder="0"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Véhicule de fonction, logement, tickets restaurant, etc.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Heures supplémentaires habituelles (€/mois)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.heuresSupHabituelles}
-                    onChange={(e) => updateFormData('heuresSupHabituelles', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                    placeholder="0"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Montant moyen mensuel des heures supplémentaires
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Autres éléments de rémunération (€/mois)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.autresElements}
-                    onChange={(e) => updateFormData('autresElements', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                    placeholder="0"
-                  />
-                </div>
-
-                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl">⚖️</span>
-                    <div>
-                      <p className="font-semibold text-green-900 mb-1">Méthode de calcul légale</p>
-                      <p className="text-sm text-green-800">
-                        L'indemnité de congés payés se calcule selon la méthode la plus favorable 
-                        entre : (1) le 1/10ème de la rémunération brute totale de la période de référence, 
-                        ou (2) le maintien du salaire habituel pendant les congés.
-                      </p>
-                    </div>
-                  </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Quelles preuves possédez-vous ?
+                </label>
+                <div className="space-y-3">
+                  {[
+                    { value: 'bulletins_paie', label: 'Bulletins de paie' },
+                    { value: 'recap_conges', label: 'Récapitulatif de congés' },
+                    { value: 'demandes_conges', label: 'Demandes de congés écrites' },
+                    { value: 'emails', label: 'Emails / courriers' },
+                    { value: 'planning', label: 'Planning de l\'entreprise' },
+                    { value: 'contrat', label: 'Contrat de travail' }
+                  ].map(item => (
+                    <label key={item.value} className="flex items-start p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.preuves.includes(item.value)}
+                        onChange={() => handleCheckboxChange('preuves', item.value)}
+                        className="mt-1 mr-3 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{item.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
             </div>
           )}
 
-          {/* ÉTAPE 4 */}
+          {/* Étape 4 : Calcul et indemnisation */}
           {currentStep === 4 && (
-            <div>
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full mb-4">
-                  <span className="text-3xl">📁</span>
-                </div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                  Contexte et Preuves
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  💰 Calcul et indemnisation
                 </h2>
                 <p className="text-gray-600">
-                  Étape 4/4 : Situation et documents disponibles
+                  Comment calculer vos droits aux congés payés
                 </p>
               </div>
 
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Depuis combien de temps les CP ne sont pas payés/pris ? *
-                  </label>
-                  <select
-                    value={formData.anciennete}
-                    onChange={(e) => updateFormData('anciennete', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="">-- Sélectionnez --</option>
-                    <option value="0">Moins de 6 mois</option>
-                    <option value="1">6 mois à 1 an</option>
-                    <option value="2">1 à 2 ans</option>
-                    <option value="3">2 à 3 ans</option>
-                    <option value="4">Plus de 3 ans ⚠️</option>
-                  </select>
-                  <p className="text-xs text-red-600 mt-1">
-                    ⚠️ Attention : La prescription est de 3 ans pour les congés payés
-                  </p>
-                </div>
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-gray-700">
+                  <strong>ℹ️ Information :</strong> L'indemnité de congés payés est calculée selon la méthode 
+                  la plus favorable entre :
+                </p>
+                <ul className="mt-2 space-y-1 text-sm text-gray-700 ml-4">
+                  <li>• <strong>Maintien de salaire</strong> : salaire habituel</li>
+                  <li>• <strong>Règle du 1/10</strong> : 10% de la rémunération brute perçue pendant la période de référence</li>
+                </ul>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    L'employeur a-t-il refusé que vous posiez vos CP ? *
-                  </label>
-                  <select
-                    value={formData.refusEmployeur}
-                    onChange={(e) => updateFormData('refusEmployeur', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="">-- Sélectionnez --</option>
-                    <option value="oui">Oui, refus explicite ou absence de réponse</option>
-                    <option value="non">Non, je n'ai pas demandé à les poser</option>
-                    <option value="impossible">Impossible de les poser (surcharge, planning)</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quel mode de calcul utilise votre employeur ? *
+                </label>
+                <select
+                  value={formData.modeCalcul}
+                  onChange={(e) => handleInputChange('modeCalcul', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Sélectionnez...</option>
+                  <option value="maintien">Maintien de salaire</option>
+                  <option value="dixieme">Règle du 1/10</option>
+                  <option value="inconnu">Je ne sais pas</option>
+                </select>
+              </div>
 
-                {formData.refusEmployeur === 'oui' && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Détails sur les refus
-                    </label>
-                    <textarea
-                      value={formData.detailsRefus}
-                      onChange={(e) => updateFormData('detailsRefus', e.target.value)}
-                      rows={3}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                      placeholder="Décrivez les circonstances : dates, motifs invoqués par l'employeur..."
-                    />
-                  </div>
-                )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Les primes sont-elles incluses dans le calcul ?
+                </label>
+                <select
+                  value={formData.primesIncluses}
+                  onChange={(e) => handleInputChange('primesIncluses', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Sélectionnez...</option>
+                  <option value="oui">Oui, toutes les primes</option>
+                  <option value="partiel">Certaines primes seulement</option>
+                  <option value="non">Non, aucune prime</option>
+                  <option value="inconnu">Je ne sais pas</option>
+                </select>
+                <p className="mt-2 text-sm text-gray-500">
+                  💡 Les primes liées au travail effectif doivent être prises en compte dans le calcul
+                </p>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Preuves disponibles * (plusieurs choix possibles)
-                  </label>
-                  <div className="space-y-2">
-                    {[
-                      { value: 'bulletins', label: 'Bulletins de salaire mentionnant le solde de CP' },
-                      { value: 'attestation', label: 'Attestation employeur ou certificat de travail' },
-                      { value: 'emails_refus', label: 'Emails/courriers de refus de l\'employeur' },
-                      { value: 'demandes_ecrites', label: 'Demandes écrites de congés' },
-                      { value: 'temoignages', label: 'Témoignages de collègues' },
-                      { value: 'planning', label: 'Planning ou registre des absences' },
-                      { value: 'journal', label: 'Journal personnel / cahier de suivi' }
-                    ].map((preuve) => (
-                      <label key={preuve.value} className="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.preuvesDisponibles.includes(preuve.value)}
-                          onChange={() => toggleArrayValue('preuvesDisponibles', preuve.value)}
-                          className="w-5 h-5 text-blue-600"
-                        />
-                        <span className="text-gray-700">{preuve.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Précisions sur vos preuves
-                  </label>
-                  <textarea
-                    value={formData.detailsPreuves}
-                    onChange={(e) => updateFormData('detailsPreuves', e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                    placeholder="Décrivez vos documents : nombre de bulletins, dates des emails, etc."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Avez-vous reçu une indemnité compensatrice ? *
-                  </label>
-                  <select
-                    value={formData.indemnitePayee}
-                    onChange={(e) => updateFormData('indemnitePayee', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="">-- Sélectionnez --</option>
-                    <option value="non">Non, aucune indemnité reçue</option>
-                    <option value="partiel">Oui, mais montant insuffisant</option>
-                    <option value="oui">Oui, montant complet reçu</option>
-                  </select>
-                </div>
-
-                {(formData.indemnitePayee === 'partiel' || formData.indemnitePayee === 'oui') && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Montant déjà perçu (€)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.montantDejaPercu}
-                      onChange={(e) => updateFormData('montantDejaPercu', e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
-                      placeholder="0"
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Vos objectifs * (plusieurs choix possibles)
-                  </label>
-                  <div className="space-y-2">
-                    {[
-                      { value: 'recuperation_totale', label: 'Récupération du montant total dû' },
-                      { value: 'regularisation', label: 'Régularisation à l\'amiable' },
-                      { value: 'mise_en_demeure', label: 'Envoi d\'une mise en demeure' },
-                      { value: 'prudhommes', label: 'Saisine du Conseil de prud\'hommes si nécessaire' },
-                      { value: 'information', label: 'Comprendre mes droits et le montant dû' }
-                    ].map((objectif) => (
-                      <label key={objectif.value} className="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.objectifs.includes(objectif.value)}
-                          onChange={() => toggleArrayValue('objectifs', objectif.value)}
-                          className="w-5 h-5 text-blue-600"
-                        />
-                        <span className="text-gray-700">{objectif.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date de départ de l'entreprise
+                </label>
+                <input
+                  type="date"
+                  value={formData.dateDepart}
+                  onChange={(e) => handleInputChange('dateDepart', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="mt-2 text-sm text-gray-500">
+                  Si vous avez quitté ou allez quitter l'entreprise
+                </p>
               </div>
             </div>
           )}
 
-          {/* Boutons de navigation */}
-          <div className="flex gap-4 mt-8 pt-6 border-t">
+          {/* Étape 5 : Réclamation */}
+          {currentStep === 5 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  🎯 Votre réclamation
+                </h2>
+                <p className="text-gray-600">
+                  Dernières informations pour finaliser votre diagnostic
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Avez-vous déjà entrepris des démarches ?
+                </label>
+                <div className="space-y-3">
+                  {[
+                    { value: 'courrier_employeur', label: 'Courrier à l\'employeur' },
+                    { value: 'medecine_travail', label: 'Médecine du travail' },
+                    { value: 'inspection', label: 'Inspection du travail' },
+                    { value: 'syndicat', label: 'Syndicat' },
+                    { value: 'avocat', label: 'Consultation avocat' },
+                    { value: 'prudhommes', label: 'Saisine Prud\'hommes' }
+                  ].map(item => (
+                    <label key={item.value} className="flex items-start p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.demarchesDeja.includes(item.value)}
+                        onChange={() => handleCheckboxChange('demarchesDeja', item.value)}
+                        className="mt-1 mr-3 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Quels sont vos objectifs ? *
+                </label>
+                <div className="space-y-3">
+                  {[
+                    { value: 'paiement_cp', label: 'Obtenir le paiement de mes congés payés' },
+                    { value: 'regularisation', label: 'Régularisation du solde de congés' },
+                    { value: 'prise_conges', label: 'Pouvoir prendre mes congés' },
+                    { value: 'dommages', label: 'Dommages et intérêts pour le préjudice subi' }
+                  ].map(item => (
+                    <label key={item.value} className="flex items-start p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.objectifs.includes(item.value)}
+                        onChange={() => handleCheckboxChange('objectifs', item.value)}
+                        className="mt-1 mr-3 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Niveau d'urgence
+                </label>
+                <select
+                  value={formData.urgence}
+                  onChange={(e) => handleInputChange('urgence', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Sélectionnez...</option>
+                  <option value="immediat">Immédiat (départ imminent)</option>
+                  <option value="court_terme">Court terme (1-3 mois)</option>
+                  <option value="moyen_terme">Moyen terme (3-6 mois)</option>
+                  <option value="pas_urgent">Pas urgent</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Détails supplémentaires (optionnel)
+                </label>
+                <textarea
+                  value={formData.detailsSituation}
+                  onChange={(e) => handleInputChange('detailsSituation', e.target.value)}
+                  rows={4}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  placeholder="Précisez tout élément important pour votre situation..."
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Navigation */}
+          <div className="flex gap-4 mt-8 pt-6 border-t border-gray-200">
             {currentStep > 1 && (
               <button
-                onClick={prevStep}
-                className="flex-1 bg-gray-200 text-gray-700 py-4 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
+                onClick={handlePrevious}
+                className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
               >
-                ← Étape précédente
+                ← Précédent
               </button>
             )}
-            <button
-              onClick={nextStep}
-              disabled={!validateStep(currentStep)}
-              className={`flex-1 py-4 rounded-xl font-semibold transition-colors ${
-                validateStep(currentStep)
-                  ? 'bg-gradient-to-r from-blue-600 to-green-600 text-white hover:from-blue-700 hover:to-green-700'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
-            >
-              {currentStep === 4 ? 'Voir les résultats →' : 'Étape suivante →'}
-            </button>
+            
+            {currentStep < totalSteps ? (
+              <button
+                onClick={handleNext}
+                disabled={!isStepValid(currentStep)}
+                className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
+                  isStepValid(currentStep)
+                    ? 'bg-gradient-to-r from-blue-600 to-green-500 text-white hover:shadow-lg'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Suivant →
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={!isStepValid(currentStep) || isCalculating}
+                className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
+                  isStepValid(currentStep) && !isCalculating
+                    ? 'bg-gradient-to-r from-blue-600 to-green-500 text-white hover:shadow-lg'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                {isCalculating ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Analyse en cours...
+                  </span>
+                ) : (
+                  '✨ Générer mon diagnostic'
+                )}
+              </button>
+            )}
           </div>
         </div>
-      </div>
+      </main>
+
+      {/* Footer avec fond sombre et texte blanc */}
+      <footer className="bg-gray-900 text-white py-8 mt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <p className="text-sm text-gray-400 mb-2">
+              ⚖️ Ce diagnostic est fourni à titre informatif. Il ne remplace pas les conseils d'un avocat.
+            </p>
+            <p className="text-sm text-gray-400">
+              Pour un accompagnement personnalisé, consultez un avocat spécialisé en droit du travail.
+            </p>
+            <p className="text-xs text-gray-500 mt-4">
+              © 2025 JustiJob - Tous droits réservés
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
