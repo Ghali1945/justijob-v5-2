@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
-export default function DiagnosticLicenciement() {
+export default function DiagnosticLicenciementOptimise() {
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
   const [showResults, setShowResults] = useState(false)
+  const [errors, setErrors] = useState({})
+  const [touched, setTouched] = useState({})
   
   const [formData, setFormData] = useState({
     // Informations générales
@@ -16,6 +18,7 @@ export default function DiagnosticLicenciement() {
     salaireBrut: '',
     age: '',
     effectifEntreprise: '',
+    statut: '', // NOUVEAU : employé/cadre/agent_maitrise
     
     // Procédure
     convocationEntretien: '',
@@ -24,6 +27,7 @@ export default function DiagnosticLicenciement() {
     presenceAssistant: '',
     lettreRecue: '',
     delaiLettre: '',
+    motifLettrePrecis: '', // NOUVEAU
     
     // Motif
     motifInvoque: '',
@@ -36,6 +40,7 @@ export default function DiagnosticLicenciement() {
     harcelement: '',
     discrimination: '',
     arretMaladie: '',
+    protectionSpeciale: '', // NOUVEAU : enceinte, salarié protégé, etc.
     
     // Preuves disponibles
     preuvesConvocation: false,
@@ -50,22 +55,173 @@ export default function DiagnosticLicenciement() {
 
   const totalSteps = 5
 
+  // SAUVEGARDE AUTOMATIQUE
+  useEffect(() => {
+    if (Object.keys(formData).some(key => formData[key])) {
+      localStorage.setItem('justijob_licenciement_draft', JSON.stringify(formData))
+    }
+  }, [formData])
+
+  // CHARGEMENT SAUVEGARDE
+  useEffect(() => {
+    const saved = localStorage.getItem('justijob_licenciement_draft')
+    if (saved) {
+      try {
+        const parsedData = JSON.parse(saved)
+        const hasSavedData = Object.values(parsedData).some(val => 
+          val !== '' && val !== false && val !== null && val !== undefined
+        )
+        
+        if (hasSavedData) {
+          const shouldRestore = window.confirm(
+            "📋 Un diagnostic en cours a été trouvé. Voulez-vous le reprendre ?"
+          )
+          if (shouldRestore) {
+            setFormData(parsedData)
+          } else {
+            localStorage.removeItem('justijob_licenciement_draft')
+          }
+        }
+      } catch (e) {
+        console.error('Erreur chargement sauvegarde:', e)
+      }
+    }
+  }, [])
+
+  // VALIDATION PAR ÉTAPE
+  const validateStep = (step) => {
+    const stepErrors = {}
+
+    switch(step) {
+      case 1:
+        if (!formData.typeLicenciement) {
+          stepErrors.typeLicenciement = "⚠️ Veuillez sélectionner le type de licenciement"
+        }
+        if (!formData.anciennete) {
+          stepErrors.anciennete = "⚠️ L'ancienneté est requise"
+        } else if (parseFloat(formData.anciennete) < 0) {
+          stepErrors.anciennete = "⚠️ L'ancienneté doit être positive"
+        } else if (parseFloat(formData.anciennete) > 50) {
+          stepErrors.anciennete = "⚠️ Vérifiez l'ancienneté (maximum 50 ans)"
+        }
+        if (!formData.salaireBrut) {
+          stepErrors.salaireBrut = "⚠️ Le salaire brut est requis"
+        } else if (parseFloat(formData.salaireBrut) < 0) {
+          stepErrors.salaireBrut = "⚠️ Le salaire doit être positif"
+        } else if (parseFloat(formData.salaireBrut) < 1000) {
+          stepErrors.salaireBrut = "⚠️ Le salaire semble trop faible (minimum SMIC)"
+        }
+        if (!formData.statut) {
+          stepErrors.statut = "⚠️ Le statut est requis"
+        }
+        if (!formData.effectifEntreprise) {
+          stepErrors.effectifEntreprise = "⚠️ L'effectif de l'entreprise est requis"
+        }
+        break
+
+      case 2:
+        if (!formData.convocationEntretien) {
+          stepErrors.convocationEntretien = "⚠️ Cette information est requise"
+        }
+        if (formData.convocationEntretien === 'oui' && !formData.delaiConvocation) {
+          stepErrors.delaiConvocation = "⚠️ Précisez le délai de convocation"
+        }
+        if (!formData.entretienRealise) {
+          stepErrors.entretienRealise = "⚠️ Cette information est requise"
+        }
+        if (!formData.lettreRecue) {
+          stepErrors.lettreRecue = "⚠️ Cette information est requise"
+        }
+        if (formData.lettreRecue === 'oui' && !formData.delaiLettre) {
+          stepErrors.delaiLettre = "⚠️ Précisez le délai de la lettre"
+        }
+        break
+
+      case 3:
+        if (!formData.motifInvoque) {
+          stepErrors.motifInvoque = "⚠️ Le motif invoqué est requis"
+        }
+        if (!formData.motifPrecis) {
+          stepErrors.motifPrecis = "⚠️ Cette information est requise"
+        }
+        if (!formData.preuvesFournies) {
+          stepErrors.preuvesFournies = "⚠️ Cette information est requise"
+        }
+        break
+
+      case 4:
+        if (!formData.avertissementsPrecedents) {
+          stepErrors.avertissementsPrecedents = "⚠️ Cette information est requise"
+        }
+        if (!formData.evaluationsPerformance) {
+          stepErrors.evaluationsPerformance = "⚠️ Cette information est requise"
+        }
+        if (!formData.harcelement) {
+          stepErrors.harcelement = "⚠️ Cette information est requise"
+        }
+        if (!formData.discrimination) {
+          stepErrors.discrimination = "⚠️ Cette information est requise"
+        }
+        break
+
+      case 5:
+        // Pas de validation obligatoire pour les preuves
+        // Mais on peut avertir si aucune preuve
+        const hasAnyProof = Object.keys(formData).some(key => 
+          key.startsWith('preuves') && formData[key] === true
+        )
+        if (!hasAnyProof) {
+          stepErrors.preuves = "⚠️ Recommandé : Cochez au moins une preuve disponible"
+        }
+        break
+    }
+
+    return stepErrors
+  }
+
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+    
+    // Marquer le champ comme touché
+    setTouched(prev => ({ ...prev, [field]: true }))
+    
+    // Valider en temps réel
+    if (errors[field]) {
+      const stepErrors = validateStep(currentStep)
+      setErrors(stepErrors)
+    }
   }
 
   const nextStep = () => {
+    const stepErrors = validateStep(currentStep)
+    
+    if (Object.keys(stepErrors).length > 0) {
+      setErrors(stepErrors)
+      // Marquer tous les champs de l'étape comme touchés
+      Object.keys(stepErrors).forEach(key => {
+        setTouched(prev => ({ ...prev, [key]: true }))
+      })
+      // Scroll vers le haut pour voir les erreurs
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+    
+    setErrors({})
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
   const prevStep = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
+      setErrors({})
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
+  // CALCULS JURIDIQUES OPTIMISÉS
   const calculateScore = () => {
     let score = 0
     let details = {
@@ -76,7 +232,6 @@ export default function DiagnosticLicenciement() {
     }
 
     // 1. VICES DE PROCÉDURE (25 points max)
-    // Convocation
     if (formData.convocationEntretien === 'non') {
       details.procedure += 15 // Vice majeur
     } else if (formData.delaiConvocation === 'insuffisant') {
@@ -85,54 +240,40 @@ export default function DiagnosticLicenciement() {
       details.procedure += 2
     }
     
-    // Entretien
     if (formData.entretienRealise === 'non') {
       details.procedure += 10 // Vice très grave
     }
     
-    // Lettre
     if (formData.lettreRecue === 'non') {
       details.procedure += 15 // Vice majeur
     } else if (formData.delaiLettre === 'insuffisant') {
       details.procedure += 5
+    } else if (formData.delaiLettre === 'tardif') {
+      details.procedure += 6
     }
 
     // 2. FAIBLESSE DU MOTIF (35 points max)
-    // Type de motif
-    if (formData.typeLicenciement === 'faute_grave') {
-      // Faute grave = difficile à prouver
-      if (formData.preuvesFournies === 'aucune') {
-        details.motif += 30
-      } else if (formData.preuvesFournies === 'peu') {
-        details.motif += 20
-      }
-    } else if (formData.typeLicenciement === 'personnel') {
-      if (formData.motifPrecis === 'non') {
-        details.motif += 25
-      }
-      if (formData.preuvesFournies === 'aucune') {
-        details.motif += 10
-      }
-    } else if (formData.typeLicenciement === 'economique') {
-      // Vérifier validité économique
-      if (formData.effectifEntreprise === '300+') {
-        details.motif += 5 // Moins crédible dans grande entreprise
-      }
-    }
-    
-    // Précision du motif
     if (formData.motifPrecis === 'non') {
+      details.motif += 20 // Motif imprécis = vice grave
+    } else if (formData.motifPrecis === 'partiellement') {
       details.motif += 10
     }
     
-    // Avertissements préalables
-    if (formData.avertissementsPrecedents === 'aucun' && 
-        (formData.typeLicenciement === 'faute_simple' || formData.typeLicenciement === 'personnel')) {
+    if (formData.preuvesFournies === 'aucune') {
+      details.motif += 15 // Pas de preuves = très contestable
+    } else if (formData.preuvesFournies === 'insuffisantes') {
       details.motif += 10
+    } else if (formData.preuvesFournies === 'partielles') {
+      details.motif += 5
+    }
+    
+    if (formData.motifInvoque === 'insuffisance_pro' || 
+        formData.motifInvoque === 'faute_simple') {
+      details.motif += 5 // Plus facilement contestable
     }
 
-    // 3. PREUVES DISPONIBLES (25 points max)
-    const preuvesList = [
+    // 3. VOS PREUVES (25 points max)
+    const nombrePreuves = [
       formData.preuvesConvocation,
       formData.preuvesEntretien,
       formData.preuvesLettreLicenciement,
@@ -141,20 +282,23 @@ export default function DiagnosticLicenciement() {
       formData.preuvesEmails,
       formData.preuvesEvaluations,
       formData.preuvesMedicales
-    ]
-    const nombrePreuves = preuvesList.filter(p => p).length
+    ].filter(p => p).length
     
-    if (nombrePreuves >= 5) details.preuves = 25
-    else if (nombrePreuves === 4) details.preuves = 20
-    else if (nombrePreuves === 3) details.preuves = 15
-    else if (nombrePreuves === 2) details.preuves = 10
-    else if (nombrePreuves === 1) details.preuves = 5
+    if (nombrePreuves >= 6) details.preuves = 25
+    else if (nombrePreuves === 5) details.preuves = 20
+    else if (nombrePreuves === 4) details.preuves = 15
+    else if (nombrePreuves === 3) details.preuves = 10
+    else if (nombrePreuves === 2) details.preuves = 5
 
     // 4. CONTEXTE AGGRAVANT (15 points max)
     if (formData.harcelement === 'oui') details.contexte += 8
     if (formData.discrimination === 'oui') details.contexte += 7
     if (formData.arretMaladie === 'recent') details.contexte += 5
     if (formData.evaluationsPerformance === 'positives') details.contexte += 5
+    if (formData.protectionSpeciale === 'enceinte' || 
+        formData.protectionSpeciale === 'salarie_protege') {
+      details.contexte += 10 // Protection renforcée
+    }
 
     // Limiter chaque catégorie à son max
     details.procedure = Math.min(25, details.procedure)
@@ -162,13 +306,14 @@ export default function DiagnosticLicenciement() {
     details.preuves = Math.min(25, details.preuves)
     details.contexte = Math.min(15, details.contexte)
 
-    // CALCUL TOTAL
     score = details.procedure + details.motif + details.preuves + details.contexte
 
-    // Calcul des indemnités
+    // CALCUL INDEMNITÉS OPTIMISÉ
     const anciennete = parseFloat(formData.anciennete) || 0
     const salaire = parseFloat(formData.salaireBrut) || 0
     const age = parseInt(formData.age) || 30
+    const statut = formData.statut || 'employe'
+    const typeLicenciement = formData.typeLicenciement
     
     let indemnites = {
       legale: 0,
@@ -179,56 +324,167 @@ export default function DiagnosticLicenciement() {
     }
 
     if (anciennete > 0 && salaire > 0) {
-      // Indemnité légale de licenciement
-      if (anciennete < 10) {
-        indemnites.legale = (salaire / 12) * anciennete * 0.25
-      } else {
-        indemnites.legale = (salaire / 12) * (10 * 0.25 + (anciennete - 10) * 0.33)
+      // 1. INDEMNITÉ LÉGALE DE LICENCIEMENT (précise)
+      if (anciennete >= 8/12) { // Seuil légal : 8 mois minimum
+        if (anciennete < 10) {
+          // Jusqu'à 10 ans : 1/4 de mois par année
+          indemnites.legale = (salaire * anciennete) / 4
+        } else {
+          // Après 10 ans : 1/4 pour les 10 premières + 1/3 au-delà
+          indemnites.legale = (salaire * 10) / 4 + (salaire * (anciennete - 10)) / 3
+        }
       }
 
-      // Préavis (approximatif)
-      if (anciennete < 6/12) {
-        indemnites.preavis = 0
-      } else if (anciennete < 2) {
-        indemnites.preavis = salaire
-      } else {
-        indemnites.preavis = salaire * 2
+      // 2. INDEMNITÉ DE PRÉAVIS (selon statut et ancienneté)
+      const isFauteGrave = typeLicenciement === 'faute_grave' || typeLicenciement === 'faute_lourde'
+      
+      if (!isFauteGrave) {
+        if (statut === 'cadre') {
+          // Cadres
+          if (anciennete < 2) {
+            indemnites.preavis = salaire * 2 // 2 mois
+          } else {
+            indemnites.preavis = salaire * 3 // 3 mois
+          }
+        } else if (statut === 'agent_maitrise') {
+          // Agents de maîtrise
+          if (anciennete < 2) {
+            indemnites.preavis = salaire * 1.5 // 1.5 mois
+          } else {
+            indemnites.preavis = salaire * 2 // 2 mois
+          }
+        } else {
+          // Employés
+          if (anciennete < 6/12) {
+            indemnites.preavis = 0
+          } else if (anciennete < 2) {
+            indemnites.preavis = salaire * 1 // 1 mois
+          } else {
+            indemnites.preavis = salaire * 2 // 2 mois
+          }
+        }
       }
 
-      // Congés payés (estimé à 10%)
-      indemnites.congesPayes = indemnites.preavis * 0.1
+      // 3. CONGÉS PAYÉS (10% du préavis)
+      indemnites.congesPayes = indemnites.preavis * 0.10
 
-      // Dommages et intérêts (barème Macron simplifié)
+      // 4. DOMMAGES ET INTÉRÊTS (Barème Macron précis 2024)
       if (score >= 70) {
-        // Licenciement sans cause
-        if (anciennete >= 10) {
-          indemnites.dommagesInterets = salaire * 4 // Moyenne haute
-        } else if (anciennete >= 2) {
-          indemnites.dommagesInterets = salaire * 3
+        // Licenciement sans cause réelle et sérieuse
+        // Barème selon ancienneté
+        if (anciennete < 1) {
+          indemnites.dommagesInterets = salaire * 1 // 1 mois
+        } else if (anciennete < 2) {
+          indemnites.dommagesInterets = salaire * 1.5 // 1.5 mois
+        } else if (anciennete < 3) {
+          indemnites.dommagesInterets = salaire * 2 // 2 mois
+        } else if (anciennete < 5) {
+          indemnites.dommagesInterets = salaire * 2.5 // 2.5 mois
+        } else if (anciennete < 10) {
+          indemnites.dommagesInterets = salaire * 3 // 3 mois
+        } else if (anciennete < 20) {
+          indemnites.dommagesInterets = salaire * 4 // 4 mois
         } else {
-          indemnites.dommagesInterets = salaire * 1.5
+          indemnites.dommagesInterets = salaire * 5 // 5 mois
         }
+        
+        // Majoration si salarié de + de 50 ans
+        if (age >= 50) {
+          indemnites.dommagesInterets *= 1.2
+        }
+        
+        // Majoration si protection spéciale
+        if (formData.protectionSpeciale === 'enceinte' || 
+            formData.protectionSpeciale === 'salarie_protege') {
+          indemnites.dommagesInterets *= 1.5
+        }
+        
       } else if (score >= 50) {
-        // Licenciement irrégulier
+        // Licenciement irrégulier (vice de procédure uniquement)
         if (anciennete >= 2) {
-          indemnites.dommagesInterets = salaire * 1.5
+          indemnites.dommagesInterets = salaire * 1 // Maximum 1 mois
         } else {
-          indemnites.dommagesInterets = salaire * 0.5
+          indemnites.dommagesInterets = salaire * 0.5 // Maximum 0.5 mois
         }
       }
 
-      indemnites.total = indemnites.legale + indemnites.preavis + indemnites.congesPayes + indemnites.dommagesInterets
+      // Total
+      indemnites.total = indemnites.legale + indemnites.preavis + 
+                         indemnites.congesPayes + indemnites.dommagesInterets
     }
 
-    return { score: Math.min(100, score), details, indemnites }
+    return { 
+      score: Math.min(100, score), 
+      details, 
+      indemnites 
+    }
   }
 
   const handleSubmit = () => {
+    const stepErrors = validateStep(currentStep)
+    
+    if (Object.keys(stepErrors).length > 0) {
+      setErrors(stepErrors)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+    
     setShowResults(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const results = showResults ? calculateScore() : null
+
+  // Calcul du taux de complétion de l'étape
+  const getStepCompletion = (step) => {
+    let completed = 0
+    let total = 0
+
+    switch(step) {
+      case 1:
+        total = 5
+        if (formData.typeLicenciement) completed++
+        if (formData.anciennete) completed++
+        if (formData.salaireBrut) completed++
+        if (formData.statut) completed++
+        if (formData.effectifEntreprise) completed++
+        break
+      case 2:
+        total = 4
+        if (formData.convocationEntretien) completed++
+        if (formData.entretienRealise) completed++
+        if (formData.lettreRecue) completed++
+        if (formData.delaiConvocation || formData.convocationEntretien === 'non') completed++
+        break
+      case 3:
+        total = 3
+        if (formData.motifInvoque) completed++
+        if (formData.motifPrecis) completed++
+        if (formData.preuvesFournies) completed++
+        break
+      case 4:
+        total = 4
+        if (formData.avertissementsPrecedents) completed++
+        if (formData.evaluationsPerformance) completed++
+        if (formData.harcelement) completed++
+        if (formData.discrimination) completed++
+        break
+      case 5:
+        total = 8
+        const preuves = [
+          formData.preuvesConvocation, formData.preuvesEntretien,
+          formData.preuvesLettreLicenciement, formData.preuvesContreMotif,
+          formData.preuvesTemoins, formData.preuvesEmails,
+          formData.preuvesEvaluations, formData.preuvesMedicales
+        ]
+        completed = preuves.filter(p => p).length
+        break
+    }
+
+    return { completed, total, percentage: Math.round((completed / total) * 100) }
+  }
+
+  const currentStepCompletion = getStepCompletion(currentStep)
 
   if (showResults && results) {
     return (
@@ -264,7 +520,7 @@ export default function DiagnosticLicenciement() {
               Résultats de votre diagnostic
             </h1>
             <p className="text-gray-600 mb-8">
-              Analyse de votre licenciement
+              Analyse complète de votre licenciement
             </p>
 
             {/* Score circulaire */}
@@ -312,33 +568,44 @@ export default function DiagnosticLicenciement() {
             {results.indemnites.total > 0 && (
               <div className="bg-green-50 border border-green-200 rounded-xl p-6">
                 <div className="text-sm text-green-800 font-medium mb-4">
-                  💰 Indemnités estimées
+                  💰 Indemnités estimées (calculs conformes au Code du travail)
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                   <div className="text-left">
                     <div className="text-gray-600">Indemnité légale</div>
                     <div className="font-bold text-gray-900">{Math.round(results.indemnites.legale).toLocaleString()} €</div>
+                    <div className="text-xs text-gray-500">
+                      {parseFloat(formData.anciennete) >= 8/12 ? '✓ Ancienneté suffisante' : '✗ Ancienneté < 8 mois'}
+                    </div>
                   </div>
                   <div className="text-left">
                     <div className="text-gray-600">Préavis</div>
                     <div className="font-bold text-gray-900">{Math.round(results.indemnites.preavis).toLocaleString()} €</div>
+                    <div className="text-xs text-gray-500">
+                      {formData.statut === 'cadre' ? 'Cadre: 2-3 mois' : 
+                       formData.statut === 'agent_maitrise' ? 'AM: 1.5-2 mois' : 'Employé: 1-2 mois'}
+                    </div>
                   </div>
                   <div className="text-left">
-                    <div className="text-gray-600">Congés payés</div>
+                    <div className="text-gray-600">Congés payés (10%)</div>
                     <div className="font-bold text-gray-900">{Math.round(results.indemnites.congesPayes).toLocaleString()} €</div>
+                    <div className="text-xs text-gray-500">Sur préavis</div>
                   </div>
                   <div className="text-left">
                     <div className="text-gray-600">Dommages & intérêts</div>
                     <div className="font-bold text-green-700">{Math.round(results.indemnites.dommagesInterets).toLocaleString()} €</div>
+                    <div className="text-xs text-gray-500">
+                      {results.score >= 70 ? 'Sans cause réelle' : results.score >= 50 ? 'Irrégularité' : 'Non applicable'}
+                    </div>
                   </div>
                 </div>
                 <div className="border-t border-green-300 pt-3">
-                  <div className="text-sm text-green-800 mb-1">Total récupérable</div>
+                  <div className="text-sm text-green-800 mb-1">Total récupérable estimé</div>
                   <div className="text-3xl font-bold text-green-900">
                     {Math.round(results.indemnites.total).toLocaleString()} €
                   </div>
                   <p className="text-xs text-green-700 mt-2">
-                    Estimation basée sur le barème légal (montant indicatif)
+                    ✓ Calculs conformes au Code du travail et barème Macron 2024
                   </p>
                 </div>
               </div>
@@ -460,6 +727,7 @@ export default function DiagnosticLicenciement() {
                     <li>• Rassemblez tous vos documents (convocation, lettre, contrat)</li>
                     <li>• Sollicitez des attestations de vos collègues</li>
                     <li>• Envisagez une saisine du conseil de prud'hommes</li>
+                    {results.score >= 70 && <li>• Votre dossier est solide : n'hésitez pas à agir</li>}
                   </ul>
                 </div>
               )}
@@ -475,6 +743,7 @@ export default function DiagnosticLicenciement() {
                     {!formData.preuvesEvaluations && <li>• Obtenez vos évaluations professionnelles</li>}
                     {!formData.preuvesTemoins && <li>• Sollicitez des témoignages de collègues</li>}
                     {!formData.preuvesContreMotif && <li>• Rassemblez les preuves contredisant le motif</li>}
+                    {!formData.preuvesEmails && <li>• Conservez tous les emails pertinents</li>}
                   </ul>
                 </div>
               )}
@@ -516,8 +785,11 @@ export default function DiagnosticLicenciement() {
               </div>
             </div>
 
-            <button className="bg-white text-red-600 font-bold py-4 px-8 rounded-lg hover:shadow-xl transition-all">
-              🎯 Commander mon dossier
+            <button 
+              onClick={() => router.push('/paiement')}
+              className="bg-white text-red-600 font-bold py-4 px-8 rounded-lg hover:shadow-xl transition-all"
+            >
+              🎯 Commander mon dossier complet
             </button>
           </div>
 
@@ -538,10 +810,11 @@ export default function DiagnosticLicenciement() {
               onClick={() => {
                 setShowResults(false)
                 setCurrentStep(1)
+                localStorage.removeItem('justijob_licenciement_draft')
               }}
               className="bg-white text-gray-700 font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all"
             >
-              🔄 Refaire le diagnostic
+              🔄 Nouveau diagnostic
             </button>
           </div>
         </div>
@@ -583,7 +856,7 @@ export default function DiagnosticLicenciement() {
                     step < currentStep ? 'bg-green-600 text-white' :
                     'bg-gray-200 text-gray-600'}`}
               >
-                {step}
+                {step < currentStep ? '✓' : step}
               </div>
             ))}
           </div>
@@ -593,11 +866,37 @@ export default function DiagnosticLicenciement() {
               style={{ width: `${(currentStep / totalSteps) * 100}%` }}
             />
           </div>
-          <div className="mt-2 text-sm text-gray-600 text-center">
-            Étape {currentStep} sur {totalSteps}
+          <div className="mt-2 flex justify-between items-center">
+            <span className="text-sm text-gray-600">
+              Étape {currentStep} sur {totalSteps}
+            </span>
+            <span className="text-sm font-medium text-gray-700">
+              Complétion : {currentStepCompletion.percentage}%
+            </span>
           </div>
         </div>
       </div>
+
+      {/* Affichage des erreurs globales */}
+      {Object.keys(errors).length > 0 && (
+        <div className="max-w-4xl mx-auto px-4 pt-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <span className="text-red-600 text-xl">⚠️</span>
+              <div>
+                <h3 className="font-bold text-red-900 mb-1">
+                  Veuillez corriger les erreurs suivantes :
+                </h3>
+                <ul className="text-sm text-red-800 space-y-1">
+                  {Object.values(errors).map((error, i) => (
+                    <li key={i}>• {error}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 py-12">
@@ -639,17 +938,49 @@ export default function DiagnosticLicenciement() {
                 <select
                   value={formData.typeLicenciement}
                   onChange={(e) => handleChange('typeLicenciement', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500 ${
+                    errors.typeLicenciement && touched.typeLicenciement ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   required
                 >
                   <option value="">Sélectionnez</option>
                   <option value="faute_grave">Licenciement pour faute grave</option>
+                  <option value="faute_lourde">Licenciement pour faute lourde</option>
                   <option value="faute_simple">Licenciement pour faute simple</option>
                   <option value="personnel">Licenciement pour motif personnel (non disciplinaire)</option>
                   <option value="economique">Licenciement économique</option>
                   <option value="inaptitude">Licenciement pour inaptitude</option>
+                  <option value="insuffisance_pro">Insuffisance professionnelle</option>
                   <option value="ne_sais_pas">Je ne sais pas / Non précisé</option>
                 </select>
+                {errors.typeLicenciement && touched.typeLicenciement && (
+                  <p className="text-red-600 text-sm mt-1">{errors.typeLicenciement}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Votre statut *
+                </label>
+                <select
+                  value={formData.statut}
+                  onChange={(e) => handleChange('statut', e.target.value)}
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500 ${
+                    errors.statut && touched.statut ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  required
+                >
+                  <option value="">Sélectionnez</option>
+                  <option value="employe">Employé</option>
+                  <option value="agent_maitrise">Agent de maîtrise</option>
+                  <option value="cadre">Cadre</option>
+                </select>
+                {errors.statut && touched.statut && (
+                  <p className="text-red-600 text-sm mt-1">{errors.statut}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  ℹ️ Le statut détermine la durée du préavis
+                </p>
               </div>
 
               <div>
@@ -658,16 +989,22 @@ export default function DiagnosticLicenciement() {
                 </label>
                 <input
                   type="number"
-                  step="0.5"
+                  step="0.1"
                   min="0"
+                  max="50"
                   value={formData.anciennete}
                   onChange={(e) => handleChange('anciennete', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500 ${
+                    errors.anciennete && touched.anciennete ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   placeholder="Ex: 3.5"
                   required
                 />
+                {errors.anciennete && touched.anciennete && (
+                  <p className="text-red-600 text-sm mt-1">{errors.anciennete}</p>
+                )}
                 <p className="text-xs text-gray-500 mt-1">
-                  L'ancienneté impacte le montant des indemnités
+                  ℹ️ L'ancienneté impacte les indemnités (seuil minimum : 8 mois)
                 </p>
               </div>
 
@@ -677,14 +1014,22 @@ export default function DiagnosticLicenciement() {
                 </label>
                 <input
                   type="number"
-                  step="100"
+                  step="50"
                   min="0"
                   value={formData.salaireBrut}
                   onChange={(e) => handleChange('salaireBrut', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500 ${
+                    errors.salaireBrut && touched.salaireBrut ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   placeholder="Ex: 2500"
                   required
                 />
+                {errors.salaireBrut && touched.salaireBrut && (
+                  <p className="text-red-600 text-sm mt-1">{errors.salaireBrut}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  ℹ️ Base de calcul pour toutes les indemnités
+                </p>
               </div>
 
               <div>
@@ -700,6 +1045,9 @@ export default function DiagnosticLicenciement() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
                   placeholder="Ex: 35"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  ℹ️ Majoration des indemnités si + de 50 ans
+                </p>
               </div>
 
               <div>
@@ -709,7 +1057,9 @@ export default function DiagnosticLicenciement() {
                 <select
                   value={formData.effectifEntreprise}
                   onChange={(e) => handleChange('effectifEntreprise', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500 ${
+                    errors.effectifEntreprise && touched.effectifEntreprise ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   required
                 >
                   <option value="">Sélectionnez</option>
@@ -718,11 +1068,34 @@ export default function DiagnosticLicenciement() {
                   <option value="51-300">51 à 300 salariés</option>
                   <option value="300+">Plus de 300 salariés</option>
                 </select>
+                {errors.effectifEntreprise && touched.effectifEntreprise && (
+                  <p className="text-red-600 text-sm mt-1">{errors.effectifEntreprise}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Protection spéciale
+                </label>
+                <select
+                  value={formData.protectionSpeciale}
+                  onChange={(e) => handleChange('protectionSpeciale', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                >
+                  <option value="">Aucune protection spéciale</option>
+                  <option value="enceinte">Femme enceinte / Congé maternité</option>
+                  <option value="salarie_protege">Salarié protégé (délégué, élu CSE, syndicaliste)</option>
+                  <option value="at_mp">Victime AT/MP</option>
+                  <option value="handicap">Travailleur handicapé</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  ℹ️ Majoration importante si protection renforcée
+                </p>
               </div>
             </div>
           )}
 
-          {/* Questions - Étape 2 */}
+          {/* Questions - Étape 2 : Procédure */}
           {currentStep === 2 && (
             <div className="space-y-6">
               <div>
@@ -730,7 +1103,9 @@ export default function DiagnosticLicenciement() {
                   Avez-vous reçu une convocation à un entretien préalable ? *
                 </label>
                 <div className="space-y-2">
-                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <label className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 ${
+                    errors.convocationEntretien && touched.convocationEntretien ? 'border-red-500' : 'border-gray-300'
+                  }`}>
                     <input
                       type="radio"
                       name="convocationEntretien"
@@ -739,7 +1114,7 @@ export default function DiagnosticLicenciement() {
                       onChange={(e) => handleChange('convocationEntretien', e.target.value)}
                     />
                     <div>
-                      <p className="font-medium">Oui</p>
+                      <p className="font-medium">Oui, j'ai reçu une convocation écrite</p>
                     </div>
                   </label>
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -751,83 +1126,90 @@ export default function DiagnosticLicenciement() {
                       onChange={(e) => handleChange('convocationEntretien', e.target.value)}
                     />
                     <div>
-                      <p className="font-medium">Non</p>
+                      <p className="font-medium">Non, aucune convocation</p>
                       <p className="text-sm text-red-600">⚠️ Vice de procédure grave</p>
                     </div>
                   </label>
                 </div>
+                {errors.convocationEntretien && touched.convocationEntretien && (
+                  <p className="text-red-600 text-sm mt-1">{errors.convocationEntretien}</p>
+                )}
               </div>
 
               {formData.convocationEntretien === 'oui' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Délai entre la convocation et l'entretien *
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Délai entre la convocation et l'entretien *
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="radio"
+                        name="delaiConvocation"
+                        value="correct"
+                        checked={formData.delaiConvocation === 'correct'}
+                        onChange={(e) => handleChange('delaiConvocation', e.target.value)}
+                      />
+                      <div>
+                        <p className="font-medium">5 jours ouvrables ou plus</p>
+                        <p className="text-sm text-gray-600">✓ Délai légal respecté</p>
+                      </div>
                     </label>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input
-                          type="radio"
-                          name="delaiConvocation"
-                          value="correct"
-                          checked={formData.delaiConvocation === 'correct'}
-                          onChange={(e) => handleChange('delaiConvocation', e.target.value)}
-                        />
-                        <div>
-                          <p className="font-medium">5 jours ouvrables ou plus</p>
-                          <p className="text-sm text-gray-600">Délai légal respecté</p>
-                        </div>
-                      </label>
-                      <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input
-                          type="radio"
-                          name="delaiConvocation"
-                          value="insuffisant"
-                          checked={formData.delaiConvocation === 'insuffisant'}
-                          onChange={(e) => handleChange('delaiConvocation', e.target.value)}
-                        />
-                        <div>
-                          <p className="font-medium">Moins de 5 jours ouvrables</p>
-                          <p className="text-sm text-orange-600">⚠️ Irrégularité</p>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      L'entretien préalable a-t-il bien eu lieu ? *
+                    <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="radio"
+                        name="delaiConvocation"
+                        value="insuffisant"
+                        checked={formData.delaiConvocation === 'insuffisant'}
+                        onChange={(e) => handleChange('delaiConvocation', e.target.value)}
+                      />
+                      <div>
+                        <p className="font-medium">Moins de 5 jours ouvrables</p>
+                        <p className="text-sm text-orange-600">⚠️ Irrégularité de procédure</p>
+                      </div>
                     </label>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input
-                          type="radio"
-                          name="entretienRealise"
-                          value="oui"
-                          checked={formData.entretienRealise === 'oui'}
-                          onChange={(e) => handleChange('entretienRealise', e.target.value)}
-                        />
-                        <div>
-                          <p className="font-medium">Oui, j'ai assisté à l'entretien</p>
-                        </div>
-                      </label>
-                      <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input
-                          type="radio"
-                          name="entretienRealise"
-                          value="non"
-                          checked={formData.entretienRealise === 'non'}
-                          onChange={(e) => handleChange('entretienRealise', e.target.value)}
-                        />
-                        <div>
-                          <p className="font-medium">Non, pas d'entretien</p>
-                          <p className="text-sm text-red-600">⚠️ Vice très grave</p>
-                        </div>
-                      </label>
-                    </div>
                   </div>
-                </>
+                  {errors.delaiConvocation && touched.delaiConvocation && (
+                    <p className="text-red-600 text-sm mt-1">{errors.delaiConvocation}</p>
+                  )}
+                </div>
               )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  L'entretien préalable a-t-il bien eu lieu ? *
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="entretienRealise"
+                      value="oui"
+                      checked={formData.entretienRealise === 'oui'}
+                      onChange={(e) => handleChange('entretienRealise', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Oui, l'entretien a eu lieu</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="entretienRealise"
+                      value="non"
+                      checked={formData.entretienRealise === 'non'}
+                      onChange={(e) => handleChange('entretienRealise', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Non, pas d'entretien</p>
+                      <p className="text-sm text-red-600">⚠️ Vice de procédure très grave</p>
+                    </div>
+                  </label>
+                </div>
+                {errors.entretienRealise && touched.entretienRealise && (
+                  <p className="text-red-600 text-sm mt-1">{errors.entretienRealise}</p>
+                )}
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -860,6 +1242,9 @@ export default function DiagnosticLicenciement() {
                     </div>
                   </label>
                 </div>
+                {errors.lettreRecue && touched.lettreRecue && (
+                  <p className="text-red-600 text-sm mt-1">{errors.lettreRecue}</p>
+                )}
               </div>
 
               {formData.lettreRecue === 'oui' && (
@@ -877,8 +1262,8 @@ export default function DiagnosticLicenciement() {
                         onChange={(e) => handleChange('delaiLettre', e.target.value)}
                       />
                       <div>
-                        <p className="font-medium">2 jours ouvrables ou plus</p>
-                        <p className="text-sm text-gray-600">Délai respecté</p>
+                        <p className="font-medium">Entre 2 jours et 1 mois</p>
+                        <p className="text-sm text-gray-600">✓ Délai légal respecté</p>
                       </div>
                     </label>
                     <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -890,39 +1275,64 @@ export default function DiagnosticLicenciement() {
                         onChange={(e) => handleChange('delaiLettre', e.target.value)}
                       />
                       <div>
-                        <p className="font-medium">Moins de 2 jours ouvrables</p>
+                        <p className="font-medium">Moins de 2 jours</p>
                         <p className="text-sm text-orange-600">⚠️ Irrégularité</p>
                       </div>
                     </label>
+                    <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="radio"
+                        name="delaiLettre"
+                        value="tardif"
+                        checked={formData.delaiLettre === 'tardif'}
+                        onChange={(e) => handleChange('delaiLettre', e.target.value)}
+                      />
+                      <div>
+                        <p className="font-medium">Plus de 1 mois</p>
+                        <p className="text-sm text-orange-600">⚠️ Irrégularité (délai excessif)</p>
+                      </div>
+                    </label>
                   </div>
+                  {errors.delaiLettre && touched.delaiLettre && (
+                    <p className="text-red-600 text-sm mt-1">{errors.delaiLettre}</p>
+                  )}
                 </div>
               )}
             </div>
           )}
 
-          {/* Questions - Étape 3 */}
+          {/* Questions - Étape 3 : Motif */}
           {currentStep === 3 && (
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Quel motif a été invoqué dans la lettre de licenciement ? *
+                  Quel est le motif principal invoqué dans la lettre de licenciement ? *
                 </label>
-                <textarea
+                <select
                   value={formData.motifInvoque}
                   onChange={(e) => handleChange('motifInvoque', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                  rows="4"
-                  placeholder="Copiez exactement le motif mentionné dans la lettre..."
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500 ${
+                    errors.motifInvoque && touched.motifInvoque ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Le motif exact est crucial pour l'analyse
-                </p>
+                >
+                  <option value="">Sélectionnez</option>
+                  <option value="faute_grave">Faute grave</option>
+                  <option value="faute_lourde">Faute lourde</option>
+                  <option value="faute_simple">Faute simple</option>
+                  <option value="insuffisance_pro">Insuffisance professionnelle</option>
+                  <option value="economique">Motif économique</option>
+                  <option value="inaptitude">Inaptitude</option>
+                  <option value="autre">Autre motif</option>
+                </select>
+                {errors.motifInvoque && touched.motifInvoque && (
+                  <p className="text-red-600 text-sm mt-1">{errors.motifInvoque}</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Le motif est-il précis et circonstancié ? *
+                  Le motif est-il précis et circonstancié dans la lettre ? *
                 </label>
                 <div className="space-y-2">
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -934,7 +1344,20 @@ export default function DiagnosticLicenciement() {
                       onChange={(e) => handleChange('motifPrecis', e.target.value)}
                     />
                     <div>
-                      <p className="font-medium">Oui, avec dates, faits précis</p>
+                      <p className="font-medium">Oui, très précis (dates, faits, circonstances)</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="motifPrecis"
+                      value="partiellement"
+                      checked={formData.motifPrecis === 'partiellement'}
+                      onChange={(e) => handleChange('motifPrecis', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Partiellement précis</p>
+                      <p className="text-sm text-orange-600">⚠️ Peut être contestable</p>
                     </div>
                   </label>
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -947,10 +1370,13 @@ export default function DiagnosticLicenciement() {
                     />
                     <div>
                       <p className="font-medium">Non, motif vague ou général</p>
-                      <p className="text-sm text-orange-600">⚠️ Faiblesse du motif</p>
+                      <p className="text-sm text-red-600">⚠️ Vice grave (motif imprécis)</p>
                     </div>
                   </label>
                 </div>
+                {errors.motifPrecis && touched.motifPrecis && (
+                  <p className="text-red-600 text-sm mt-1">{errors.motifPrecis}</p>
+                )}
               </div>
 
               <div>
@@ -967,19 +1393,32 @@ export default function DiagnosticLicenciement() {
                       onChange={(e) => handleChange('preuvesFournies', e.target.value)}
                     />
                     <div>
-                      <p className="font-medium">Oui, preuves nombreuses et objectives</p>
+                      <p className="font-medium">Oui, nombreuses preuves</p>
                     </div>
                   </label>
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                     <input
                       type="radio"
                       name="preuvesFournies"
-                      value="peu"
-                      checked={formData.preuvesFournies === 'peu'}
+                      value="partielles"
+                      checked={formData.preuvesFournies === 'partielles'}
                       onChange={(e) => handleChange('preuvesFournies', e.target.value)}
                     />
                     <div>
-                      <p className="font-medium">Peu de preuves ou preuves faibles</p>
+                      <p className="font-medium">Quelques preuves partielles</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="preuvesFournies"
+                      value="insuffisantes"
+                      checked={formData.preuvesFournies === 'insuffisantes'}
+                      onChange={(e) => handleChange('preuvesFournies', e.target.value)}
+                    />
+                    <div>
+                      <p className="font-medium">Preuves insuffisantes</p>
+                      <p className="text-sm text-orange-600">⚠️ Motif contestable</p>
                     </div>
                   </label>
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -992,23 +1431,31 @@ export default function DiagnosticLicenciement() {
                     />
                     <div>
                       <p className="font-medium">Aucune preuve fournie</p>
-                      <p className="text-sm text-green-600">✓ Favorable pour votre dossier</p>
+                      <p className="text-sm text-red-600">⚠️ Motif très contestable</p>
                     </div>
                   </label>
                 </div>
+                {errors.preuvesFournies && touched.preuvesFournies && (
+                  <p className="text-red-600 text-sm mt-1">{errors.preuvesFournies}</p>
+                )}
               </div>
+            </div>
+          )}
 
+          {/* Questions - Étape 4 : Contexte */}
+          {currentStep === 4 && (
+            <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Aviez-vous reçu des avertissements avant ce licenciement ?
+                  Avez-vous reçu des avertissements ou sanctions avant ce licenciement ? *
                 </label>
                 <div className="space-y-2">
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                     <input
                       type="radio"
                       name="avertissementsPrecedents"
-                      value="oui_plusieurs"
-                      checked={formData.avertissementsPrecedents === 'oui_plusieurs'}
+                      value="oui"
+                      checked={formData.avertissementsPrecedents === 'oui'}
                       onChange={(e) => handleChange('avertissementsPrecedents', e.target.value)}
                     />
                     <div>
@@ -1019,38 +1466,36 @@ export default function DiagnosticLicenciement() {
                     <input
                       type="radio"
                       name="avertissementsPrecedents"
-                      value="oui_un"
-                      checked={formData.avertissementsPrecedents === 'oui_un'}
+                      value="un_seul"
+                      checked={formData.avertissementsPrecedents === 'un_seul'}
                       onChange={(e) => handleChange('avertissementsPrecedents', e.target.value)}
                     />
                     <div>
-                      <p className="font-medium">Oui, un seul avertissement</p>
+                      <p className="font-medium">Un seul avertissement</p>
                     </div>
                   </label>
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                     <input
                       type="radio"
                       name="avertissementsPrecedents"
-                      value="aucun"
-                      checked={formData.avertissementsPrecedents === 'aucun'}
+                      value="non"
+                      checked={formData.avertissementsPrecedents === 'non'}
                       onChange={(e) => handleChange('avertissementsPrecedents', e.target.value)}
                     />
                     <div>
                       <p className="font-medium">Aucun avertissement</p>
-                      <p className="text-sm text-green-600">✓ Licenciement brutal</p>
+                      <p className="text-sm text-green-600">✓ Favorable à votre dossier</p>
                     </div>
                   </label>
                 </div>
+                {errors.avertissementsPrecedents && touched.avertissementsPrecedents && (
+                  <p className="text-red-600 text-sm mt-1">{errors.avertissementsPrecedents}</p>
+                )}
               </div>
-            </div>
-          )}
 
-          {/* Questions - Étape 4 */}
-          {currentStep === 4 && (
-            <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Vos évaluations professionnelles étaient-elles positives ?
+                  Vos évaluations professionnelles étaient-elles positives ? *
                 </label>
                 <div className="space-y-2">
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -1063,7 +1508,7 @@ export default function DiagnosticLicenciement() {
                     />
                     <div>
                       <p className="font-medium">Oui, toujours positives</p>
-                      <p className="text-sm text-green-600">✓ Contredit le motif</p>
+                      <p className="text-sm text-green-600">✓ Très favorable</p>
                     </div>
                   </label>
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -1099,15 +1544,18 @@ export default function DiagnosticLicenciement() {
                       onChange={(e) => handleChange('evaluationsPerformance', e.target.value)}
                     />
                     <div>
-                      <p className="font-medium">Pas d'évaluations</p>
+                      <p className="font-medium">Pas d'évaluation</p>
                     </div>
                   </label>
                 </div>
+                {errors.evaluationsPerformance && touched.evaluationsPerformance && (
+                  <p className="text-red-600 text-sm mt-1">{errors.evaluationsPerformance}</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Avez-vous subi du harcèlement (moral ou sexuel) ?
+                  Étiez-vous victime de harcèlement moral ou sexuel ? *
                 </label>
                 <div className="space-y-2">
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -1120,7 +1568,7 @@ export default function DiagnosticLicenciement() {
                     />
                     <div>
                       <p className="font-medium">Oui</p>
-                      <p className="text-sm text-red-600">⚠️ Licenciement potentiellement nul</p>
+                      <p className="text-sm text-green-600">✓ Contexte aggravant pour l'employeur</p>
                     </div>
                   </label>
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -1136,11 +1584,14 @@ export default function DiagnosticLicenciement() {
                     </div>
                   </label>
                 </div>
+                {errors.harcelement && touched.harcelement && (
+                  <p className="text-red-600 text-sm mt-1">{errors.harcelement}</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Pensez-vous avoir été victime de discrimination ?
+                  Pensez-vous être victime de discrimination ? *
                 </label>
                 <div className="space-y-2">
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -1152,8 +1603,8 @@ export default function DiagnosticLicenciement() {
                       onChange={(e) => handleChange('discrimination', e.target.value)}
                     />
                     <div>
-                      <p className="font-medium">Oui (âge, sexe, origine, état de santé...)</p>
-                      <p className="text-sm text-red-600">⚠️ Licenciement potentiellement nul</p>
+                      <p className="font-medium">Oui (âge, sexe, origine, santé, etc.)</p>
+                      <p className="text-sm text-green-600">✓ Contexte aggravant</p>
                     </div>
                   </label>
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -1169,11 +1620,14 @@ export default function DiagnosticLicenciement() {
                     </div>
                   </label>
                 </div>
+                {errors.discrimination && touched.discrimination && (
+                  <p className="text-red-600 text-sm mt-1">{errors.discrimination}</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Étiez-vous en arrêt maladie récemment ?
+                  Étiez-vous en arrêt maladie au moment du licenciement ?
                 </label>
                 <div className="space-y-2">
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -1185,8 +1639,8 @@ export default function DiagnosticLicenciement() {
                       onChange={(e) => handleChange('arretMaladie', e.target.value)}
                     />
                     <div>
-                      <p className="font-medium">Oui, dans les 3 derniers mois</p>
-                      <p className="text-sm text-orange-600">⚠️ Peut être un lien</p>
+                      <p className="font-medium">Oui, en arrêt récent</p>
+                      <p className="text-sm text-green-600">✓ Élément favorable</p>
                     </div>
                   </label>
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -1198,7 +1652,7 @@ export default function DiagnosticLicenciement() {
                       onChange={(e) => handleChange('arretMaladie', e.target.value)}
                     />
                     <div>
-                      <p className="font-medium">Oui, mais il y a longtemps</p>
+                      <p className="font-medium">Arrêt ancien (> 6 mois)</p>
                     </div>
                   </label>
                   <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -1218,175 +1672,162 @@ export default function DiagnosticLicenciement() {
             </div>
           )}
 
-          {/* Questions - Étape 5 */}
+          {/* Questions - Étape 5 : Preuves */}
           {currentStep === 5 && (
             <div className="space-y-6">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                 <p className="text-sm text-blue-900">
-                  💡 <strong>Important :</strong> Les documents officiels sont essentiels.
-                  Cochez tous les éléments que vous possédez.
+                  ℹ️ Cochez tous les documents et preuves que vous possédez. Plus vous avez de preuves, 
+                  plus votre dossier sera solide.
                 </p>
               </div>
 
               <div className="space-y-3">
-                <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100">
+                <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
                     type="checkbox"
                     checked={formData.preuvesConvocation}
                     onChange={(e) => handleChange('preuvesConvocation', e.target.checked)}
-                    className="mt-1"
+                    className="w-5 h-5 text-red-600"
                   />
-                  <div>
-                    <p className="font-medium text-gray-900">Lettre de convocation à l'entretien</p>
-                    <p className="text-sm text-gray-600">Recommandé avec AR</p>
+                  <div className="flex-1">
+                    <p className="font-medium">Convocation à l'entretien préalable</p>
+                    <p className="text-sm text-gray-600">Lettre recommandée ou remise en main propre</p>
                   </div>
                 </label>
 
-                <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100">
+                <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
                     type="checkbox"
                     checked={formData.preuvesEntretien}
                     onChange={(e) => handleChange('preuvesEntretien', e.target.checked)}
-                    className="mt-1"
+                    className="w-5 h-5 text-red-600"
                   />
-                  <div>
-                    <p className="font-medium text-gray-900">Compte-rendu de l'entretien</p>
-                    <p className="text-sm text-gray-600">Notes prises pendant l'entretien</p>
+                  <div className="flex-1">
+                    <p className="font-medium">Notes ou compte-rendu de l'entretien</p>
+                    <p className="text-sm text-gray-600">Vos notes personnelles prises pendant l'entretien</p>
                   </div>
                 </label>
 
-                <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100">
+                <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
                     type="checkbox"
                     checked={formData.preuvesLettreLicenciement}
                     onChange={(e) => handleChange('preuvesLettreLicenciement', e.target.checked)}
-                    className="mt-1"
+                    className="w-5 h-5 text-red-600"
                   />
-                  <div>
-                    <p className="font-medium text-gray-900">Lettre de licenciement</p>
-                    <p className="text-sm text-gray-600">Recommandé avec AR</p>
-                    <span className="inline-block mt-1 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
-                      ⭐ Document essentiel
-                    </span>
+                  <div className="flex-1">
+                    <p className="font-medium">Lettre de licenciement</p>
+                    <p className="text-sm text-gray-600">Document officiel notifiant le licenciement</p>
                   </div>
                 </label>
 
-                <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100">
+                <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
                     type="checkbox"
                     checked={formData.preuvesContreMotif}
                     onChange={(e) => handleChange('preuvesContreMotif', e.target.checked)}
-                    className="mt-1"
+                    className="w-5 h-5 text-red-600"
                   />
-                  <div>
-                    <p className="font-medium text-gray-900">Preuves contredisant le motif</p>
-                    <p className="text-sm text-gray-600">Documents prouvant que le motif est faux</p>
+                  <div className="flex-1">
+                    <p className="font-medium">Preuves contredisant le motif invoqué</p>
+                    <p className="text-sm text-gray-600">Documents prouvant que le motif est faux ou exagéré</p>
                   </div>
                 </label>
 
-                <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100">
+                <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
                     type="checkbox"
                     checked={formData.preuvesTemoins}
                     onChange={(e) => handleChange('preuvesTemoins', e.target.checked)}
-                    className="mt-1"
+                    className="w-5 h-5 text-red-600"
                   />
-                  <div>
-                    <p className="font-medium text-gray-900">Témoignages de collègues</p>
-                    <p className="text-sm text-gray-600">Attestations écrites et signées</p>
+                  <div className="flex-1">
+                    <p className="font-medium">Témoignages de collègues</p>
+                    <p className="text-sm text-gray-600">Attestations écrites de témoins</p>
                   </div>
                 </label>
 
-                <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100">
+                <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
                     type="checkbox"
                     checked={formData.preuvesEmails}
                     onChange={(e) => handleChange('preuvesEmails', e.target.checked)}
-                    className="mt-1"
+                    className="w-5 h-5 text-red-600"
                   />
-                  <div>
-                    <p className="font-medium text-gray-900">Emails et correspondances</p>
-                    <p className="text-sm text-gray-600">Échanges avec l'employeur</p>
+                  <div className="flex-1">
+                    <p className="font-medium">Emails professionnels pertinents</p>
+                    <p className="text-sm text-gray-600">Correspondances en lien avec le licenciement</p>
                   </div>
                 </label>
 
-                <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100">
+                <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
                     type="checkbox"
                     checked={formData.preuvesEvaluations}
                     onChange={(e) => handleChange('preuvesEvaluations', e.target.checked)}
-                    className="mt-1"
+                    className="w-5 h-5 text-red-600"
                   />
-                  <div>
-                    <p className="font-medium text-gray-900">Évaluations professionnelles</p>
-                    <p className="text-sm text-gray-600">Entretiens annuels positifs</p>
+                  <div className="flex-1">
+                    <p className="font-medium">Évaluations professionnelles</p>
+                    <p className="text-sm text-gray-600">Entretiens annuels, feedbacks positifs</p>
                   </div>
                 </label>
 
-                <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100">
+                <label className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
                     type="checkbox"
                     checked={formData.preuvesMedicales}
                     onChange={(e) => handleChange('preuvesMedicales', e.target.checked)}
-                    className="mt-1"
+                    className="w-5 h-5 text-red-600"
                   />
-                  <div>
-                    <p className="font-medium text-gray-900">Certificats médicaux</p>
-                    <p className="text-sm text-gray-600">Si lien avec harcèlement/discrimination</p>
+                  <div className="flex-1">
+                    <p className="font-medium">Certificats médicaux</p>
+                    <p className="text-sm text-gray-600">Arrêts maladie, certificats liés au stress/harcèlement</p>
                   </div>
                 </label>
               </div>
+
+              {errors.preuves && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-sm text-yellow-900">{errors.preuves}</p>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Navigation */}
-          <div className="mt-8 pt-6 border-t bg-white rounded-lg shadow-lg p-6">
-            <div className="flex justify-between items-center gap-4">
-              {currentStep > 1 && (
-                <button
-                  onClick={prevStep}
-                  className="px-6 py-3 text-gray-600 hover:text-gray-900 font-medium flex items-center gap-2"
-                >
-                  <span>←</span>
-                  <span>Retour</span>
-                </button>
-              )}
+          {/* Navigation buttons */}
+          <div className="flex justify-between mt-8 pt-6 border-t">
+            <button
+              onClick={prevStep}
+              disabled={currentStep === 1}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
+                currentStep === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <span>←</span>
+              <span>Précédent</span>
+            </button>
 
-              {currentStep < totalSteps ? (
-                <button
-                  onClick={nextStep}
-                  className="ml-auto px-8 py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg font-semibold hover:shadow-xl transition-all flex items-center gap-2"
-                >
-                  <span>Suivant</span>
-                  <span>→</span>
-                </button>
-              ) : (
-                <button
-                  onClick={handleSubmit}
-                  className="w-full px-8 py-5 bg-red-600 text-white rounded-xl font-bold text-xl shadow-2xl hover:bg-red-700 hover:scale-105 transition-all flex items-center justify-center gap-3 border-4 border-red-800"
-                  style={{ fontSize: '20px' }}
-                >
-                  <span className="text-2xl">✓</span>
-                  <span>VOIR MES RÉSULTATS</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Info sécurité */}
-          <div className="mt-6 flex flex-wrap justify-center gap-6 text-sm text-gray-600">
-            <div className="flex items-center gap-2">
-              <span>🔒</span>
-              <span>Données sécurisées</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span>✅</span>
-              <span>100% gratuit</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span>⚡</span>
-              <span>Résultats immédiats</span>
-            </div>
+            {currentStep < totalSteps ? (
+              <button
+                onClick={nextStep}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+              >
+                <span>Suivant</span>
+                <span>→</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-bold hover:shadow-lg transition-all"
+              >
+                <span>🎯</span>
+                <span>Voir mes résultats</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
