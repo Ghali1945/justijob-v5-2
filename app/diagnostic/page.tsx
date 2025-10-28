@@ -44,7 +44,7 @@ export default function DiagnosticSelectionPage() {
       icon: '🏖️',
       title: 'Congés Payés Non Pris',
       subtitle: 'Indemnité compensatrice non versée',
-      description: 'Calcul de l\'indemnité compensatrice selon les 2 méthodes légales (1/10ème ou maintien)',
+      description: 'Calcul de indemnité compensatrice selon les 2 méthodes légales (1/10ème ou maintien)',
       available: true,
       color: 'from-teal-500 to-emerald-500',
       features: [
@@ -90,10 +90,13 @@ export default function DiagnosticSelectionPage() {
       title: 'Rupture Conventionnelle',
       subtitle: 'Négociation et indemnités',
       description: 'Analyse de votre proposition et calcul des montants optimaux',
-      available: false,
+      available: true,
       color: 'from-indigo-500 to-purple-600',
       features: [
-        'Prochainement disponible'
+        'Calcul indemnité légale minimale',
+        'Recommandation Accepter/Négocier/Refuser',
+        'Détection pression employeur',
+        'Montant optimal recommandé'
       ]
     }
   ]
@@ -183,11 +186,11 @@ export default function DiagnosticSelectionPage() {
           </p>
         </div>
 
-        {/* Badge "5 diagnostics disponibles" */}
+        {/* Badge "6 diagnostics disponibles" */}
         <div className="flex justify-center mb-8">
           <div className="inline-flex items-center gap-2 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 px-6 py-3 rounded-full">
             <span className="text-2xl">🎉</span>
-            <span className="font-bold text-green-700">5 diagnostics disponibles</span>
+            <span className="font-bold text-green-700">6 diagnostics disponibles</span>
             <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">GRATUIT</span>
           </div>
         </div>
@@ -221,6 +224,15 @@ export default function DiagnosticSelectionPage() {
               {diagnostic.id === 'conges-payes' && diagnostic.available && (
                 <div className="absolute top-4 right-4 z-10">
                   <span className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse shadow-lg">
+                    NOUVEAU ✨
+                  </span>
+                </div>
+              )}
+
+              {/* Badge NOUVEAU pour rupture conventionnelle */}
+              {diagnostic.id === 'rupture-conventionnelle' && diagnostic.available && (
+                <div className="absolute top-4 right-4 z-10">
+                  <span className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse shadow-lg">
                     NOUVEAU ✨
                   </span>
                 </div>
@@ -277,7 +289,7 @@ export default function DiagnosticSelectionPage() {
         {/* Stats impressionnantes */}
         <div className="grid md:grid-cols-3 gap-6 mb-12">
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 text-center border border-blue-200">
-            <div className="text-4xl font-bold text-blue-600 mb-2">5</div>
+            <div className="text-4xl font-bold text-blue-600 mb-2">6</div>
             <div className="text-sm font-semibold text-gray-700">Diagnostics Disponibles</div>
             <div className="text-xs text-gray-600 mt-1">Gratuits et sans engagement</div>
           </div>
@@ -350,9 +362,9 @@ export default function DiagnosticSelectionPage() {
               Technologie juridique de pointe
             </h3>
             <p className="text-gray-700 mb-6">
-              Nos diagnostics utilisent l'IA Claude 4 Sonnet d'Anthropic, spécialement entraînée sur
+              Nos diagnostics utilisent IA Claude 4 Sonnet d Anthropic, spécialement entraînée sur
               le droit du travail français. Chaque analyse respecte scrupuleusement le Code du travail,
-              la jurisprudence de la Cour de cassation, et les barèmes prud'homaux en vigueur.
+              la jurisprudence de la Cour de cassation, et les barèmes prud homaux en vigueur.
             </p>
             <div className="grid md:grid-cols-3 gap-4 text-sm">
               <div className="flex items-center justify-center gap-2">
@@ -377,7 +389,7 @@ export default function DiagnosticSelectionPage() {
             <span className="text-3xl">⭐</span>
           </div>
           <h3 className="text-2xl font-bold mb-4">
-            Besoin d'un dossier complet avec jurisprudence ?
+            Besoin d un dossier complet avec jurisprudence ?
           </h3>
           <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
             Après votre diagnostic gratuit, obtenez un dossier juridique de 30 pages
@@ -409,11 +421,11 @@ export default function DiagnosticSelectionPage() {
                 <span className="text-white">JOB</span>
               </div>
               <p className="text-gray-400 text-sm mb-4">
-                Plateforme éthique et solidaire d'aide aux salariés
+                Plateforme éthique et solidaire d aide aux salariés
               </p>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-green-400">●</span>
-                <span className="text-gray-400">5 diagnostics disponibles</span>
+                <span className="text-gray-400">6 diagnostics disponibles</span>
               </div>
             </div>
             
@@ -428,6 +440,10 @@ export default function DiagnosticSelectionPage() {
                 </Link></li>
                 <li><Link href="/diagnostic/licenciement" className="hover:text-white transition-colors">📋 Licenciement</Link></li>
                 <li><Link href="/diagnostic/harcelement" className="hover:text-white transition-colors">🛡️ Harcèlement</Link></li>
+                <li><Link href="/diagnostic/rupture-conventionnelle" className="hover:text-white transition-colors flex items-center gap-2">
+                  🤝 Rupture conventionnelle
+                  <span className="bg-purple-500 text-white text-xs px-2 py-0.5 rounded-full">NEW</span>
+                </Link></li>
               </ul>
             </div>
             
