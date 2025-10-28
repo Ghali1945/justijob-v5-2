@@ -61,7 +61,7 @@ export default function DiagnosticSelectionPage() {
       subtitle: 'Abusif, sans cause réelle et sérieuse',
       description: 'Analyse juridique approfondie de la procédure et du motif invoqué',
       available: true,
-      color: 'from-red-500 to-red-600',
+      color: 'from-green-500 to-green-600',
       features: [
         'Vérification de la procédure',
         'Analyse du motif',
@@ -76,7 +76,7 @@ export default function DiagnosticSelectionPage() {
       subtitle: 'Moral, sexuel ou discrimination au travail',
       description: 'Évaluation complète de votre situation avec analyse juridique approfondie',
       available: true,
-      color: 'from-red-500 to-orange-500',
+      color: 'from-green-500 to-green-600',
       features: [
         'Analyse gravité des faits',
         'Évaluation des preuves',
