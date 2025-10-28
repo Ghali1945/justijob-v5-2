@@ -56,26 +56,17 @@ export default function DiagnosticSelectionPage() {
     },
     {
       id: 'harcelement',
-      icon: '🚫',
-      title: 'Harcèlement',
-      subtitle: 'Moral ou sexuel au travail',
-      description: 'Évaluation de la situation et orientation juridique',
-      available: false,
-      color: 'from-purple-500 to-purple-600',
+      icon: '🛡️',
+      title: 'Harcèlement et Discrimination',
+      subtitle: 'Moral, sexuel ou discrimination au travail',
+      description: 'Évaluation complète de votre situation avec analyse juridique approfondie',
+      available: true,
+      color: 'from-red-500 to-orange-500',
       features: [
-        'Prochainement disponible'
-      ]
-    },
-    {
-      id: 'discrimination',
-      icon: '⚖️',
-      title: 'Discrimination',
-      subtitle: 'Traitement inégalitaire',
-      description: 'Analyse des éléments constitutifs de discrimination',
-      available: false,
-      color: 'from-indigo-500 to-indigo-600',
-      features: [
-        'Prochainement disponible'
+        'Analyse gravité des faits',
+        'Évaluation des preuves',
+        'Calcul des réparations',
+        'Accompagnement juridique complet'
       ]
     },
     {
@@ -86,6 +77,18 @@ export default function DiagnosticSelectionPage() {
       description: 'Aide à la déclaration et au suivi de votre dossier',
       available: false,
       color: 'from-orange-500 to-orange-600',
+      features: [
+        'Prochainement disponible'
+      ]
+    },
+    {
+      id: 'rupture-conventionnelle',
+      icon: '🤝',
+      title: 'Rupture Conventionnelle',
+      subtitle: 'Négociation et indemnités',
+      description: 'Analyse de votre proposition et calcul des montants optimaux',
+      available: false,
+      color: 'from-indigo-500 to-indigo-600',
       features: [
         'Prochainement disponible'
       ]
@@ -198,6 +201,15 @@ export default function DiagnosticSelectionPage() {
                 <div className="absolute top-4 right-4 z-10">
                   <span className="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full">
                     Bientôt
+                  </span>
+                </div>
+              )}
+
+              {/* Badge NOUVEAU pour harcèlement */}
+              {diagnostic.id === 'harcelement' && diagnostic.available && (
+                <div className="absolute top-4 right-4 z-10">
+                  <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+                    NOUVEAU ✨
                   </span>
                 </div>
               )}
@@ -343,7 +355,8 @@ export default function DiagnosticSelectionPage() {
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><Link href="/diagnostic/heures-sup" className="hover:text-white">Diagnostic heures sup</Link></li>
                 <li><Link href="/diagnostic/licenciement" className="hover:text-white">Diagnostic licenciement</Link></li>
-                <li><Link href="/calculateurs" className="hover:text-white">Calculateurs</Link></li>
+                <li><Link href="/diagnostic/salaire-impaye" className="hover:text-white">Diagnostic salaires impayés</Link></li>
+                <li><Link href="/diagnostic/harcelement" className="hover:text-white">Diagnostic harcèlement</Link></li>
               </ul>
             </div>
             
