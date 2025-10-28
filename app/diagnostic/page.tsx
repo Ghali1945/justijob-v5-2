@@ -46,7 +46,7 @@ export default function DiagnosticSelectionPage() {
       subtitle: 'Indemnité compensatrice non versée',
       description: 'Calcul de indemnité compensatrice selon les 2 méthodes légales (1/10ème ou maintien)',
       available: true,
-      color: 'from-teal-500 to-emerald-500',
+      color: 'from-green-500 to-green-600',
       features: [
         'Double méthode de calcul',
         'Congés sur congés (+10%)',
