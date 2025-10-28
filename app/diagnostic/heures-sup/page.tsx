@@ -747,8 +747,10 @@ export default function DiagnosticHeuresSupplementaires() {
     return recs
   }
 
-  if (showResults) {
-    return (
+
+  return (
+    <>
+      {showResults ? (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -1022,10 +1024,7 @@ export default function DiagnosticHeuresSupplementaires() {
           </div>
         </div>
       </div>
-    )
-  }
-
-  return (
+      ) : (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
@@ -1830,5 +1829,7 @@ export default function DiagnosticHeuresSupplementaires() {
         </div>
       </div>
     </div>
+      )}
+    </>
   )
 }
