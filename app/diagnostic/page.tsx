@@ -16,7 +16,7 @@ export default function DiagnosticSelectionPage() {
       subtitle: 'Non payées ou mal calculées',
       description: 'Diagnostic détaillé avec calcul des majorations légales et conventionnelles',
       available: true,
-      color: 'from-blue-500 to-blue-600',
+      color: 'from-green-500 to-green-600',
       features: [
         'Calcul précis des heures dues',
         'Majorations 25% et 50%',
@@ -91,7 +91,7 @@ export default function DiagnosticSelectionPage() {
       subtitle: 'Négociation et indemnités',
       description: 'Analyse de votre proposition et calcul des montants optimaux',
       available: true,
-      color: 'from-indigo-500 to-purple-600',
+      color: 'from-green-500 to-green-600',
       features: [
         'Calcul indemnité légale minimale',
         'Recommandation Accepter/Négocier/Refuser',
